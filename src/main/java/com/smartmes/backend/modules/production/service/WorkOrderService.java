@@ -4,6 +4,7 @@ import com.smartmes.backend.modules.masterdata.entity.ItemMaster;
 import com.smartmes.backend.modules.masterdata.entity.Routing;
 import com.smartmes.backend.modules.masterdata.repository.ItemMasterRepository;
 import com.smartmes.backend.modules.masterdata.repository.RoutingRepository;
+import com.smartmes.backend.modules.production.dto.ProductionProgressDto;
 import com.smartmes.backend.modules.production.dto.WorkOrderRequestDto;
 import com.smartmes.backend.modules.production.dto.WorkOrderResponseDto;
 import com.smartmes.backend.modules.production.entity.WorkOrder;
@@ -73,5 +74,40 @@ public class WorkOrderService {
                 .plannedStartDate(wo.getPlannedStartDate())
                 .plannedEndDate(wo.getPlannedEndDate())
                 .build();
+    }
+    
+    @Transactional
+    public WorkOrderResponseDto updateProgress(Long id, ProductionProgressDto dto, String tenantId) {
+        // 1. Find the Work Order
+        WorkOrder wo = workOrderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Work Order not found"));
+
+        // 2. Validate status (Cannot update if CANCELLED or COMPLETED)
+        if (wo.getStatus() == WorkOrder.WorkOrderStatus.COMPLETED || 
+            wo.getStatus() == WorkOrder.WorkOrderStatus.CANCELLED) {
+            throw new IllegalStateException("Cannot update progress for a finished or cancelled order.");
+        }
+
+        // 3. Update Actual Quantity
+        int newActualQuantity = wo.getActualQuantity() + dto.getCompletedQuantity();
+        
+        // Safety check: Cannot exceed planned quantity
+        if (newActualQuantity > wo.getPlannedQuantity()) {
+            throw new IllegalArgumentException("Total completed quantity cannot exceed planned quantity!");
+        }
+        
+        wo.setActualQuantity(newActualQuantity);
+
+        // 4. Update Status automatically
+        if (newActualQuantity == 0) {
+            wo.setStatus(WorkOrder.WorkOrderStatus.RELEASED);
+        } else if (newActualQuantity < wo.getPlannedQuantity()) {
+            wo.setStatus(WorkOrder.WorkOrderStatus.IN_PROGRESS);
+        } else {
+            wo.setStatus(WorkOrder.WorkOrderStatus.COMPLETED);
+        }
+
+        WorkOrder updated = workOrderRepository.save(wo);
+        return mapToResponseDto(updated);
     }
 }
