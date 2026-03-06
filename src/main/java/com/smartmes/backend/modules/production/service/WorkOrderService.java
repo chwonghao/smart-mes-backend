@@ -1,7 +1,10 @@
 package com.smartmes.backend.modules.production.service;
 
+import com.smartmes.backend.modules.inventory.service.InventoryService; // Thêm mới
+import com.smartmes.backend.modules.masterdata.entity.Bom; // Thêm mới
 import com.smartmes.backend.modules.masterdata.entity.ItemMaster;
 import com.smartmes.backend.modules.masterdata.entity.Routing;
+import com.smartmes.backend.modules.masterdata.repository.BomRepository; // Thêm mới
 import com.smartmes.backend.modules.masterdata.repository.ItemMasterRepository;
 import com.smartmes.backend.modules.masterdata.repository.RoutingRepository;
 import com.smartmes.backend.modules.production.dto.ProductionProgressDto;
@@ -13,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal; // Thêm mới
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -25,17 +29,16 @@ public class WorkOrderService {
     private final WorkOrderRepository workOrderRepository;
     private final ItemMasterRepository itemRepository;
     private final RoutingRepository routingRepository;
+    private final BomRepository bomRepository; // Thêm mới để truy vấn công thức
+    private final InventoryService inventoryService; // Thêm mới để điều chỉnh kho
 
     @Transactional
     public WorkOrderResponseDto createWorkOrder(WorkOrderRequestDto dto, String tenantId) {
-        // 1. Validate Item
         ItemMaster item = itemRepository.findById(dto.getItemId())
                 .orElseThrow(() -> new RuntimeException("Item not found"));
 
-        // 2. Generate Work Order Number (WO-yyyyMMdd-XXXX)
         String orderNumber = generateOrderNumber();
 
-        // 3. Calculate Estimated End Date based on Routing Standard Time
         List<Routing> routings = routingRepository.findByItemIdAndTenantIdAndIsDeletedFalseOrderByStepNumberAsc(item.getId(), tenantId);
         int totalLeadTimeMinutes = routings.stream()
                 .mapToInt(r -> r.getStandardTime() * dto.getPlannedQuantity())
@@ -43,7 +46,6 @@ public class WorkOrderService {
         
         LocalDateTime plannedEndDate = dto.getPlannedStartDate().plusMinutes(totalLeadTimeMinutes);
 
-        // 4. Map and Save Entity
         WorkOrder workOrder = new WorkOrder();
         workOrder.setOrderNumber(orderNumber);
         workOrder.setItem(item);
@@ -60,7 +62,7 @@ public class WorkOrderService {
 
     private String generateOrderNumber() {
         String datePart = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        int randomPart = new Random().nextInt(900) + 100; // Random 3 digits for demo
+        int randomPart = new Random().nextInt(900) + 100;
         return "WO-" + datePart + "-" + randomPart;
     }
 
@@ -75,39 +77,69 @@ public class WorkOrderService {
                 .plannedEndDate(wo.getPlannedEndDate())
                 .build();
     }
-    
+
     @Transactional
     public WorkOrderResponseDto updateProgress(Long id, ProductionProgressDto dto, String tenantId) {
-        // 1. Find the Work Order
         WorkOrder wo = workOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Work Order not found"));
 
-        // 2. Validate status (Cannot update if CANCELLED or COMPLETED)
         if (wo.getStatus() == WorkOrder.WorkOrderStatus.COMPLETED || 
             wo.getStatus() == WorkOrder.WorkOrderStatus.CANCELLED) {
             throw new IllegalStateException("Cannot update progress for a finished or cancelled order.");
         }
 
-        // 3. Update Actual Quantity
         int newActualQuantity = wo.getActualQuantity() + dto.getCompletedQuantity();
         
-        // Safety check: Cannot exceed planned quantity
         if (newActualQuantity > wo.getPlannedQuantity()) {
             throw new IllegalArgumentException("Total completed quantity cannot exceed planned quantity!");
         }
         
         wo.setActualQuantity(newActualQuantity);
 
-        // 4. Update Status automatically
+        // Cập nhật trạng thái
         if (newActualQuantity == 0) {
             wo.setStatus(WorkOrder.WorkOrderStatus.RELEASED);
         } else if (newActualQuantity < wo.getPlannedQuantity()) {
             wo.setStatus(WorkOrder.WorkOrderStatus.IN_PROGRESS);
         } else {
+            // KHI LỆNH SẢN XUẤT HOÀN THÀNH
             wo.setStatus(WorkOrder.WorkOrderStatus.COMPLETED);
+            processInventoryPostCompletion(wo, tenantId);
         }
 
         WorkOrder updated = workOrderRepository.save(wo);
         return mapToResponseDto(updated);
+    }
+
+    /**
+     * Xử lý tự động Nhập kho Thành phẩm và Xuất kho Nguyên liệu dựa trên BOM
+     */
+    private void processInventoryPostCompletion(WorkOrder wo, String tenantId) {
+        // 1. Cộng kho Thành phẩm (Finished Good)
+        inventoryService.adjustStock(
+            wo.getItem().getId(), 
+            new BigDecimal(wo.getPlannedQuantity()), 
+            tenantId
+        );
+
+        // 2. Trừ kho Nguyên vật liệu (Raw Materials) dựa trên định mức BOM
+        List<Bom> bomList = bomRepository.findByParentItemIdAndTenantIdAndIsDeletedFalse(
+            wo.getItem().getId(), 
+            tenantId
+        );
+
+        for (Bom bom : bomList) {
+            // Lượng tiêu hao = Định mức * Số lượng sản xuất * (1 + Tỷ lệ hao hụt)
+            BigDecimal consumptionQty = bom.getQuantity()
+                .multiply(new BigDecimal(wo.getPlannedQuantity()))
+                .multiply(BigDecimal.ONE.add(bom.getScrapFactor()));
+
+            // Xuất kho (truyền số âm)
+            inventoryService.adjustStock(
+                bom.getChildItem().getId(), 
+                consumptionQty.negate(), 
+                tenantId
+            );
+        }
     }
 }
