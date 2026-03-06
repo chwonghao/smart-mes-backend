@@ -22,15 +22,7 @@ public class BomController {
     @PostMapping
     @Operation(summary = "Add a material to BOM", description = "Link a child item (raw material) to a parent item (finished good).")
     public ResponseEntity<?> addMaterialToBom(@RequestBody BomRequestDto dto) {
-        try {
-            return ResponseEntity.ok(bomService.addMaterialToBom(dto, CURRENT_TENANT_ID));
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            // Return 400 Bad Request for business logic errors
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            // Return 500 Internal Server Error for unexpected issues
-            return ResponseEntity.internalServerError().body("System error: " + e.getMessage());
-        }
+        return ResponseEntity.ok(bomService.addMaterialToBom(dto, CURRENT_TENANT_ID));
     }
 
     @GetMapping("/{parentItemId}")

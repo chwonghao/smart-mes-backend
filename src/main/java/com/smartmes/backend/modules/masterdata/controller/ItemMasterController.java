@@ -11,24 +11,22 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/master-data/items")
 @RequiredArgsConstructor
-@Tag(name = "1. Master Data - Quản lý Vật tư", description = "Các API dùng để thêm, sửa, xóa danh mục nguyên vật liệu và thành phẩm")
+@Tag(name = "1. Master Data - Item Master", description = "APIs for managing raw materials, semi-finished, and finished goods")
 public class ItemMasterController {
 
     private final ItemMasterService service;
-    private final String CURRENT_TENANT_ID = "TENANT_01"; // Tạm thời hardcode để test
+    
+    // Hardcoded for testing. Will be replaced by JWT context later.
+    private final String CURRENT_TENANT_ID = "TENANT_01"; 
 
     @PostMapping
-    @Operation(summary = "Tạo mới một vật tư/sản phẩm", description = "Lưu dữ liệu vật tư mới vào hệ thống kèm theo các thuộc tính động (JSONB).")
+    @Operation(summary = "Create a new item", description = "Save new item data into the system along with dynamic attributes (JSONB).")
     public ResponseEntity<?> createItem(@RequestBody ItemMasterDto dto) {
-        try {
-            return ResponseEntity.ok(service.createItem(dto, CURRENT_TENANT_ID));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        return ResponseEntity.ok(service.createItem(dto, CURRENT_TENANT_ID));
     }
 
     @GetMapping
-    @Operation(summary = "Lấy danh sách vật tư", description = "Trả về toàn bộ danh sách vật tư của doanh nghiệp đang đăng nhập.")
+    @Operation(summary = "Get all items", description = "Retrieve the entire list of items for the currently logged-in tenant.")
     public ResponseEntity<?> getAllItems() {
         return ResponseEntity.ok(service.getAllItems(CURRENT_TENANT_ID));
     }
