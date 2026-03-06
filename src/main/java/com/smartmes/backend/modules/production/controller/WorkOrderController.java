@@ -1,0 +1,25 @@
+package com.smartmes.backend.modules.production.controller;
+
+import com.smartmes.backend.modules.production.dto.WorkOrderRequestDto;
+import com.smartmes.backend.modules.production.service.WorkOrderService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1/production/work-orders")
+@RequiredArgsConstructor
+@Tag(name = "5. Production - Work Order", description = "APIs for managing manufacturing orders and schedules")
+public class WorkOrderController {
+
+    private final WorkOrderService service;
+    private final String CURRENT_TENANT_ID = "TENANT_01";
+
+    @PostMapping
+    @Operation(summary = "Create a new Work Order", description = "Automatically generates order number and calculates end date based on routing.")
+    public ResponseEntity<?> createWorkOrder(@RequestBody WorkOrderRequestDto dto) {
+        return ResponseEntity.ok(service.createWorkOrder(dto, CURRENT_TENANT_ID));
+    }
+}
