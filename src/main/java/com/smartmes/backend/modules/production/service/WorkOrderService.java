@@ -16,6 +16,7 @@ import com.smartmes.backend.modules.production.entity.WorkOrder;
 import com.smartmes.backend.modules.production.repository.ProductionLogRepository;
 import com.smartmes.backend.modules.production.repository.WorkOrderRepository;
 import com.smartmes.backend.modules.realtime.dto.AlertNotificationDto;
+import com.smartmes.backend.modules.realtime.service.AlertService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class WorkOrderService {
     private final InventoryService inventoryService;
     private final ProductionLogRepository productionLogRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final AlertService alertService;
 
     @Transactional
     public WorkOrderResponseDto createWorkOrder(WorkOrderRequestDto dto, String tenantId) {
@@ -136,10 +138,9 @@ public class WorkOrderService {
             String alertMsg = String.format("CẢNH BÁO: Lệnh %s vừa phát sinh %d sản phẩm lỗi. Lý do: %s", 
                     wo.getOrderNumber(), failed, qc.getDefectReason());
             
-            AlertNotificationDto alert = new AlertNotificationDto("QC_ALERT", alertMsg, LocalDateTime.now());
-            messagingTemplate.convertAndSend("/topic/alerts", alert);
+            alertService.createAndSendAlert("QC_ALERT", alertMsg, tenantId);
         }
-        
+
         wo.setActualQuantity(newActualQuantity);
 
         // 3. Cập nhật trạng thái
