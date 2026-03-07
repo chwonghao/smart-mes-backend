@@ -15,9 +15,12 @@ import com.smartmes.backend.modules.production.entity.QualityCheck; // Thêm m�
 import com.smartmes.backend.modules.production.entity.WorkOrder;
 import com.smartmes.backend.modules.production.repository.ProductionLogRepository;
 import com.smartmes.backend.modules.production.repository.WorkOrderRepository;
+import com.smartmes.backend.modules.realtime.dto.AlertNotificationDto;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -35,6 +38,7 @@ public class WorkOrderService {
     private final BomRepository bomRepository;
     private final InventoryService inventoryService;
     private final ProductionLogRepository productionLogRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public WorkOrderResponseDto createWorkOrder(WorkOrderRequestDto dto, String tenantId) {
@@ -125,8 +129,17 @@ public class WorkOrderService {
 
         // Gắn ngược QC vào Log để tính năng Cascade hoạt động
         log.setQualityCheck(qc);
-        productionLogRepository.save(log);
 
+        productionLogRepository.save(log);
+        // NẾU CÓ HÀNG LỖI -> BẮN THÔNG BÁO REAL-TIME NGAY LẬP TỨC
+        if (failed > 0) {
+            String alertMsg = String.format("CẢNH BÁO: Lệnh %s vừa phát sinh %d sản phẩm lỗi. Lý do: %s", 
+                    wo.getOrderNumber(), failed, qc.getDefectReason());
+            
+            AlertNotificationDto alert = new AlertNotificationDto("QC_ALERT", alertMsg, LocalDateTime.now());
+            messagingTemplate.convertAndSend("/topic/alerts", alert);
+        }
+        
         wo.setActualQuantity(newActualQuantity);
 
         // 3. Cập nhật trạng thái
