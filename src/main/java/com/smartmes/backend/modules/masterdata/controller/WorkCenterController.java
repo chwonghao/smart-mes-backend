@@ -49,4 +49,11 @@ public class WorkCenterController {
         service.resolveMachineIssue(id, CURRENT_TENANT_ID);
         return ResponseEntity.ok("Machine issue resolved");
     }
+
+    @PatchMapping("/{id}/ping")
+    @Operation(summary = "Heartbeat Ping", description = "IoT devices call this every 60s to keep their status online.")
+    public ResponseEntity<?> pingHeartbeat(@PathVariable Long id) {
+        service.updatePing(id);
+        return ResponseEntity.ok().build();
+    }
 }

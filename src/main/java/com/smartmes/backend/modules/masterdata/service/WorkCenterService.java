@@ -120,4 +120,18 @@ public class WorkCenterService {
         String alertMsg = String.format("TIN VUI: Máy [%s] đã được sửa chữa xong và sẵn sàng hoạt động.", wc.getName());
         alertService.createAndSendAlert("MACHINE_FIXED", alertMsg, tenantId);
     }
+
+    @Transactional
+    public void updatePing(Long workCenterId) {
+        repository.findById(workCenterId).ifPresent(wc -> {
+            wc.setLastPingAt(LocalDateTime.now());
+            // Nếu máy đang OFFLINE mà ping lại được, cho nó về IDLE
+            if (wc.getCurrentStatus() == WorkCenter.MachineStatus.OFFLINE) {
+                wc.setCurrentStatus(WorkCenter.MachineStatus.IDLE);
+                alertService.createAndSendAlert("NETWORK_RECOVERY", 
+                    "Máy [" + wc.getName() + "] đã có mạng trở lại.", wc.getTenantId());
+            }
+            repository.save(wc);
+        });
+    }
 }

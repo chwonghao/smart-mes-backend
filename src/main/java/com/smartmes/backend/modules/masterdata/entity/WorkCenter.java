@@ -1,5 +1,7 @@
 package com.smartmes.backend.modules.masterdata.entity;
 
+import java.time.LocalDateTime;
+
 import com.smartmes.backend.core.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -45,10 +47,15 @@ public class WorkCenter extends BaseEntity {
     @Column(name = "current_status", length = 20)
     private MachineStatus currentStatus = MachineStatus.IDLE;
 
+    // ĐÃ BỔ SUNG: Cột lưu thời gian ping cuối cùng để Watchdog kiểm tra
+    @Column(name = "last_ping_at")
+    private LocalDateTime lastPingAt = LocalDateTime.now();
+
     public enum MachineStatus {
         IDLE,       // Máy đang rảnh
         RUNNING,    // Máy đang chạy (sản xuất)
         DOWN,       // Máy đang hỏng/sự cố
-        MAINTENANCE // Máy đang bảo trì định kỳ
+        MAINTENANCE, // Máy đang bảo trì định kỳ
+        OFFLINE     // Máy đang mất kết nối
     }
 }
