@@ -1,5 +1,6 @@
 package com.smartmes.backend.modules.dashboard.controller;
 
+import com.smartmes.backend.modules.dashboard.dto.DashboardStatsDto;
 import com.smartmes.backend.modules.dashboard.service.DashboardService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,11 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class DashboardController {
 
     private final DashboardService service;
-    private final String CURRENT_TENANT_ID = "TENANT_01";
+    private final String CURRENT_TENANT_ID = "TENANT_01"; // Hardcode theo Project
 
     @GetMapping("/stats")
     @Operation(summary = "Get overview statistics", description = "Retrieve a summary of work orders, production rates, and inventory levels.")
-    public ResponseEntity<?> getStats() {
+    public ResponseEntity<DashboardStatsDto> getStats() { // Đã sửa ResponseEntity<?>
         return ResponseEntity.ok(service.getQuickStats(CURRENT_TENANT_ID));
     }
 }
