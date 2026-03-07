@@ -4,9 +4,9 @@ import lombok.Data;
 
 @Data
 public class ProductionProgressDto {
-    // Number of items finished in this batch
-    private Integer completedQuantity;
-    
-    // Optional notes from the operator
+    private Integer completedQuantity; // Tổng số lượng báo cáo lần này (Pass + NG)
+    private Integer passedQuantity;    // Số lượng đạt chuẩn
+    private Integer failedQuantity;    // Số lượng lỗi
+    private String defectReason;       // Lý do lỗi (nếu có)
     private String notes;
 }

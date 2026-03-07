@@ -18,6 +18,9 @@ public class ProductionLog extends BaseEntity {
     @Column(name = "quantity_done", nullable = false)
     private Integer quantityDone;
 
+    @OneToOne(mappedBy = "productionLog", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private QualityCheck qualityCheck;
+
     @Column(name = "notes")
     private String notes;
 
