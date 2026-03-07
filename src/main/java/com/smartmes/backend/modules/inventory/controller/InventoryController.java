@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/api/v1/inventory")
+@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 @Tag(name = "6. Inventory Management", description = "APIs for stock tracking and adjustments")
 public class InventoryController {

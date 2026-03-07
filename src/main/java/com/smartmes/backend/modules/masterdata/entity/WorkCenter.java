@@ -2,6 +2,7 @@ package com.smartmes.backend.modules.masterdata.entity;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.smartmes.backend.core.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -45,6 +46,7 @@ public class WorkCenter extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "current_status", length = 20)
+    @JsonProperty("currentStatus")
     private MachineStatus currentStatus = MachineStatus.IDLE;
 
     // ĐÃ BỔ SUNG: Cột lưu thời gian ping cuối cùng để Watchdog kiểm tra

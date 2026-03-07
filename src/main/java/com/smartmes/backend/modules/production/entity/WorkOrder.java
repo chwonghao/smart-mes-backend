@@ -2,6 +2,8 @@ package com.smartmes.backend.modules.production.entity;
 
 import com.smartmes.backend.core.common.BaseEntity;
 import com.smartmes.backend.modules.masterdata.entity.ItemMaster;
+import com.smartmes.backend.modules.masterdata.entity.WorkCenter;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -47,6 +49,11 @@ public class WorkOrder extends BaseEntity {
     @Column(name = "priority")
     private Integer priority = 1; // 1: Low, 2: Medium, 3: High
 
+    // Work center
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_center_id")
+    private WorkCenter workCenter;
+    
     public enum WorkOrderStatus {
         DRAFT,      // Created but not released to shop floor
         RELEASED,   // Ready to start production

@@ -11,5 +11,6 @@ public class WorkCenterResponseDto {
     private String name;
     private String centerType;
     private Integer hourlyCapacity;
+    private String currentStatus;
     private boolean isActive;
 }

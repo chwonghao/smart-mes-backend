@@ -9,4 +9,5 @@ public class WorkOrderRequestDto {
     private Integer plannedQuantity;
     private LocalDateTime plannedStartDate;
     private Integer priority; // 1: Low, 2: Medium, 3: High
+    private Long workCenterId;
 }

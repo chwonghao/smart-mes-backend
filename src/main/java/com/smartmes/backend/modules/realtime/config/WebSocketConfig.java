@@ -14,7 +14,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Mở cổng "/ws" để client (Web/App) kết nối vào. 
         // Cho phép mọi nguồn (CORS) để dễ test.
-        registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS();
+        registry.addEndpoint("/ws-mes")
+                // .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns("http://localhost:5173")
+                .withSockJS();
     }
 
     @Override

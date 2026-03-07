@@ -67,6 +67,12 @@ public class WorkOrderService {
         workOrder.setTenantId(tenantId);
         workOrder.setCreatedBy("ADMIN");
 
+        if (dto.getWorkCenterId() != null) {
+            WorkCenter wc = workCenterRepository.findById(dto.getWorkCenterId())
+                    .orElseThrow(() -> new RuntimeException("Work Center not found"));
+            workOrder.setWorkCenter(wc);
+        }
+
         WorkOrder saved = workOrderRepository.save(workOrder);
         return mapToResponseDto(saved);
     }
@@ -83,7 +89,10 @@ public class WorkOrderService {
                 .orderNumber(wo.getOrderNumber())
                 .itemName(wo.getItem().getItemName())
                 .plannedQuantity(wo.getPlannedQuantity())
+                .actualQuantity(wo.getActualQuantity()) // Thêm dòng này
                 .status(wo.getStatus().name())
+                .workCenterId(wo.getWorkCenter() != null ? wo.getWorkCenter().getId() : null) // Thêm dòng này
+                .workCenterName(wo.getWorkCenter() != null ? wo.getWorkCenter().getName() : "Chưa gán") // Thêm dòng này
                 .plannedStartDate(wo.getPlannedStartDate())
                 .plannedEndDate(wo.getPlannedEndDate())
                 .build();
@@ -207,5 +216,11 @@ public class WorkOrderService {
                         tenantId);
             }
         }
+    }
+
+    public List<WorkOrderResponseDto> getAllWorkOrders(String tenantId) {
+        return workOrderRepository.findAllByTenantId(tenantId).stream()
+                .map(this::mapToResponseDto)
+                .toList();
     }
 }

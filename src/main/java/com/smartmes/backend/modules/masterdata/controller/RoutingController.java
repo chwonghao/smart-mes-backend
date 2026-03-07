@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/master-data/routings")
+@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 @Tag(name = "4. Master Data - Routing", description = "APIs for defining production process steps (Operations)")
 public class RoutingController {

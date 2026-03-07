@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/master-data/work-centers")
+@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 @Tag(name = "3. Master Data - Work Center", description = "APIs for managing machines, assembly lines, and workstations")
 public class WorkCenterController {
@@ -37,8 +38,9 @@ public class WorkCenterController {
     }
 
     @PostMapping("/{id}/down")
-    @Operation(summary = "Report machine breakdown", description = "Logs a machine issue and triggers a real-time alert.")
-    public ResponseEntity<?> reportMachineDown(@PathVariable Long id, @RequestParam String reason) {
+    public ResponseEntity<?> reportMachineDown(
+            @PathVariable Long id, 
+            @RequestParam(name = "reason") String reason) { // Đảm bảo có @RequestParam
         service.reportMachineDown(id, reason, CURRENT_TENANT_ID);
         return ResponseEntity.ok("Machine reported as DOWN");
     }

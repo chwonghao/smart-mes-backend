@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/master-data/boms")
+@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 @Tag(name = "2. Master Data - BOM (Bill of Materials)", description = "APIs for managing product recipes and material formulas")
 public class BomController {

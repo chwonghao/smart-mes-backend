@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/master-data/items")
+@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 @Tag(name = "1. Master Data - Item Master", description = "APIs for managing raw materials, semi-finished, and finished goods")
 public class ItemMasterController {

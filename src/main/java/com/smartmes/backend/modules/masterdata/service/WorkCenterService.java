@@ -68,10 +68,12 @@ public class WorkCenterService {
                 .name(workCenter.getName())
                 .centerType(workCenter.getCenterType().name())
                 .hourlyCapacity(workCenter.getHourlyCapacity())
+                .currentStatus(workCenter.getCurrentStatus().name())
                 .isActive(workCenter.isActive())
                 .build();
     }
     
+    @SuppressWarnings("null")
     @Transactional
     public void reportMachineDown(Long workCenterId, String reason, String tenantId) {
         WorkCenter wc = repository.findById(workCenterId)

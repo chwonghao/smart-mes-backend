@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/realtime/alerts")
+@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 @Tag(name = "7. Realtime Alerts", description = "APIs for managing system notifications and QC alerts")
 public class AlertController {

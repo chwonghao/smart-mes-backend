@@ -23,7 +23,8 @@ public class SecurityConfig {
                 .requestMatchers(
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
-                        "/swagger-ui.html"
+                        "/swagger-ui.html",
+                        "/ws-mes/**"
                 ).permitAll()
                 
                 // 2. TẠM THỜI mở khóa cho tất cả các API của chúng ta để dễ test.
