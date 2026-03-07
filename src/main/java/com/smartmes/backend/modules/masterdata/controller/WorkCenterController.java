@@ -35,4 +35,18 @@ public class WorkCenterController {
     public ResponseEntity<?> getActiveWorkCenters() {
         return ResponseEntity.ok(service.getActiveWorkCenters(CURRENT_TENANT_ID));
     }
+
+    @PostMapping("/{id}/down")
+    @Operation(summary = "Report machine breakdown", description = "Logs a machine issue and triggers a real-time alert.")
+    public ResponseEntity<?> reportMachineDown(@PathVariable Long id, @RequestParam String reason) {
+        service.reportMachineDown(id, reason, CURRENT_TENANT_ID);
+        return ResponseEntity.ok("Machine reported as DOWN");
+    }
+
+    @PatchMapping("/{id}/resolve")
+    @Operation(summary = "Resolve machine issue", description = "Marks the machine issue as fixed and calculates total downtime.")
+    public ResponseEntity<?> resolveMachineIssue(@PathVariable Long id) {
+        service.resolveMachineIssue(id, CURRENT_TENANT_ID);
+        return ResponseEntity.ok("Machine issue resolved");
+    }
 }

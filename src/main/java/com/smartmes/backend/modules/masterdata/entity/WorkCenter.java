@@ -40,4 +40,15 @@ public class WorkCenter extends BaseEntity {
         WORKSTATION,    // A manual workbench
         PACKAGING       // Packaging and labeling area
     }
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "current_status", length = 20)
+    private MachineStatus currentStatus = MachineStatus.IDLE;
+
+    public enum MachineStatus {
+        IDLE,       // Máy đang rảnh
+        RUNNING,    // Máy đang chạy (sản xuất)
+        DOWN,       // Máy đang hỏng/sự cố
+        MAINTENANCE // Máy đang bảo trì định kỳ
+    }
 }
