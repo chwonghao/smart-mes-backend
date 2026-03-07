@@ -1,6 +1,8 @@
 package com.smartmes.backend.modules.production.entity;
 
 import com.smartmes.backend.core.common.BaseEntity;
+import com.smartmes.backend.modules.masterdata.entity.WorkCenter;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,6 +12,10 @@ import lombok.Setter;
 @Getter
 @Setter
 public class ProductionLog extends BaseEntity {
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_center_id", nullable = false)
+    private WorkCenter workCenter;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "work_order_id", nullable = false)

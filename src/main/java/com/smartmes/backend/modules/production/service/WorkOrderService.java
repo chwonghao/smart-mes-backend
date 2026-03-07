@@ -4,24 +4,24 @@ import com.smartmes.backend.modules.inventory.service.InventoryService;
 import com.smartmes.backend.modules.masterdata.entity.Bom;
 import com.smartmes.backend.modules.masterdata.entity.ItemMaster;
 import com.smartmes.backend.modules.masterdata.entity.Routing;
+import com.smartmes.backend.modules.masterdata.entity.WorkCenter;
 import com.smartmes.backend.modules.masterdata.repository.BomRepository;
 import com.smartmes.backend.modules.masterdata.repository.ItemMasterRepository;
 import com.smartmes.backend.modules.masterdata.repository.RoutingRepository;
+import com.smartmes.backend.modules.masterdata.repository.WorkCenterRepository;
 import com.smartmes.backend.modules.production.dto.ProductionProgressDto;
 import com.smartmes.backend.modules.production.dto.WorkOrderRequestDto;
 import com.smartmes.backend.modules.production.dto.WorkOrderResponseDto;
 import com.smartmes.backend.modules.production.entity.ProductionLog;
-import com.smartmes.backend.modules.production.entity.QualityCheck; // Thêm mới
+import com.smartmes.backend.modules.production.entity.QualityCheck;
 import com.smartmes.backend.modules.production.entity.WorkOrder;
 import com.smartmes.backend.modules.production.repository.ProductionLogRepository;
 import com.smartmes.backend.modules.production.repository.WorkOrderRepository;
-import com.smartmes.backend.modules.realtime.dto.AlertNotificationDto;
 import com.smartmes.backend.modules.realtime.service.AlertService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -39,8 +39,8 @@ public class WorkOrderService {
     private final BomRepository bomRepository;
     private final InventoryService inventoryService;
     private final ProductionLogRepository productionLogRepository;
-    private final SimpMessagingTemplate messagingTemplate;
     private final AlertService alertService;
+    private final WorkCenterRepository workCenterRepository;
 
     @Transactional
     public WorkOrderResponseDto createWorkOrder(WorkOrderRequestDto dto, String tenantId) {
@@ -94,6 +94,21 @@ public class WorkOrderService {
         WorkOrder wo = workOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Work Order not found"));
 
+        if (dto.getWorkCenterId() == null) {
+            throw new IllegalArgumentException("Bắt buộc phải chọn Máy/Trạm làm việc (workCenterId) để báo cáo!");
+        }
+
+        WorkCenter wc = workCenterRepository.findById(dto.getWorkCenterId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy Máy/Trạm làm việc này"));
+
+        // CHỐT CHẶN: Máy hỏng hoặc mất mạng thì cấm báo cáo
+        if (wc.getCurrentStatus() == WorkCenter.MachineStatus.DOWN ||
+                wc.getCurrentStatus() == WorkCenter.MachineStatus.OFFLINE) {
+            throw new IllegalStateException(String.format(
+                    "TỪ CHỐI GHI NHẬN: Máy [%s] hiện đang ở trạng thái %s. Không thể sản xuất!",
+                    wc.getName(), wc.getCurrentStatus()));
+        }
+
         if (wo.getStatus() == WorkOrder.WorkOrderStatus.COMPLETED ||
                 wo.getStatus() == WorkOrder.WorkOrderStatus.CANCELLED) {
             throw new IllegalStateException("Cannot update progress for a finished or cancelled order.");
@@ -102,7 +117,7 @@ public class WorkOrderService {
         // Validate dữ liệu từ QC
         int passed = dto.getPassedQuantity() != null ? dto.getPassedQuantity() : dto.getCompletedQuantity();
         int failed = dto.getFailedQuantity() != null ? dto.getFailedQuantity() : 0;
-        
+
         if (passed + failed != dto.getCompletedQuantity()) {
             throw new IllegalArgumentException("Passed and Failed quantities must equal Completed quantity.");
         }
@@ -113,12 +128,16 @@ public class WorkOrderService {
             throw new IllegalArgumentException("Total completed quantity cannot exceed planned quantity!");
         }
 
+        // --- SỬA LỖI #1: Trừ kho ngay lập tức theo từng lần báo cáo ---
+        processInventoryForProgress(wo, passed, dto.getCompletedQuantity(), tenantId);
+
         // 1. Khởi tạo Production Log
         ProductionLog log = new ProductionLog();
         log.setWorkOrder(wo);
+        log.setWorkCenter(wc);
         log.setQuantityDone(dto.getCompletedQuantity());
         log.setNotes(dto.getNotes());
-        log.setOperatorName("WORKER_01"); 
+        log.setOperatorName("WORKER_01");
         log.setTenantId(tenantId);
 
         // 2. Khởi tạo Quality Check và liên kết với Log
@@ -133,24 +152,25 @@ public class WorkOrderService {
         log.setQualityCheck(qc);
 
         productionLogRepository.save(log);
-        // NẾU CÓ HÀNG LỖI -> BẮN THÔNG BÁO REAL-TIME NGAY LẬP TỨC
+
+        // 3. NẾU CÓ HÀNG LỖI -> BẮN THÔNG BÁO REAL-TIME NGAY LẬP TỨC
         if (failed > 0) {
-            String alertMsg = String.format("CẢNH BÁO: Lệnh %s vừa phát sinh %d sản phẩm lỗi. Lý do: %s", 
+            String alertMsg = String.format("CẢNH BÁO: Lệnh %s vừa phát sinh %d sản phẩm lỗi. Lý do: %s",
                     wo.getOrderNumber(), failed, qc.getDefectReason());
-            
+
             alertService.createAndSendAlert("QC_ALERT", alertMsg, tenantId);
         }
 
         wo.setActualQuantity(newActualQuantity);
 
-        // 3. Cập nhật trạng thái
+        // 4. Cập nhật trạng thái
         if (newActualQuantity == 0) {
             wo.setStatus(WorkOrder.WorkOrderStatus.RELEASED);
         } else if (newActualQuantity < wo.getPlannedQuantity()) {
             wo.setStatus(WorkOrder.WorkOrderStatus.IN_PROGRESS);
         } else {
             wo.setStatus(WorkOrder.WorkOrderStatus.COMPLETED);
-            processInventoryPostCompletion(wo, tenantId);
+            // ĐÃ BỎ GỌI processInventoryPostCompletion ở đây
         }
 
         WorkOrder updated = workOrderRepository.save(wo);
@@ -158,36 +178,34 @@ public class WorkOrderService {
     }
 
     /**
-     * Xử lý tự động Nhập kho Thành phẩm (hàng đạt) và Xuất kho Nguyên liệu (tổng tiêu hao)
+     * Tự động Nhập kho Thành phẩm và Xuất kho Nguyên liệu THEO TỪNG LẦN BÁO CÁO
      */
-    private void processInventoryPostCompletion(WorkOrder wo, String tenantId) {
-        // Tính tổng số lượng hàng đạt (Passed) từ tất cả các lần ghi nhận nhật ký
-        List<ProductionLog> logs = productionLogRepository.findByWorkOrderIdOrderByCreatedAtDesc(wo.getId());
-        int totalPassedQuantity = logs.stream()
-                .mapToInt(log -> log.getQualityCheck() != null ? log.getQualityCheck().getPassedQuantity() : log.getQuantityDone())
-                .sum();
-
-        // 1. Cộng kho Thành phẩm (Chỉ cộng hàng Đạt chuẩn)
-        inventoryService.adjustStock(
-                wo.getItem().getId(),
-                new BigDecimal(totalPassedQuantity),
-                tenantId);
-
-        // 2. Trừ kho Nguyên vật liệu (Dựa trên tổng khối lượng đã làm thực tế)
-        List<Bom> bomList = bomRepository.findByParentItemIdAndTenantIdAndIsDeletedFalse(
-                wo.getItem().getId(),
-                tenantId);
-
-        for (Bom bom : bomList) {
-            // Dùng wo.getActualQuantity() vì nguyên liệu bị tiêu hao cho cả hàng Lỗi
-            BigDecimal consumptionQty = bom.getQuantity()
-                    .multiply(new BigDecimal(wo.getActualQuantity()))
-                    .multiply(BigDecimal.ONE.add(bom.getScrapFactor()));
-
+    private void processInventoryForProgress(WorkOrder wo, int passedQty, int totalCompletedQty, String tenantId) {
+        // 1. Nhập kho Thành phẩm (Chỉ nhập phần Passed của lần này)
+        if (passedQty > 0) {
             inventoryService.adjustStock(
-                    bom.getChildItem().getId(),
-                    consumptionQty.negate(),
+                    wo.getItem().getId(),
+                    new BigDecimal(passedQty),
                     tenantId);
+        }
+
+        // 2. Trừ kho Nguyên vật liệu (Dựa trên tổng khối lượng làm ra lần này, bao gồm
+        // cả lỗi)
+        if (totalCompletedQty > 0) {
+            List<Bom> bomList = bomRepository.findByParentItemIdAndTenantIdAndIsDeletedFalse(
+                    wo.getItem().getId(),
+                    tenantId);
+
+            for (Bom bom : bomList) {
+                BigDecimal consumptionQty = bom.getQuantity()
+                        .multiply(new BigDecimal(totalCompletedQty))
+                        .multiply(BigDecimal.ONE.add(bom.getScrapFactor()));
+
+                inventoryService.adjustStock(
+                        bom.getChildItem().getId(),
+                        consumptionQty.negate(),
+                        tenantId);
+            }
         }
     }
 }
