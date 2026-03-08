@@ -156,7 +156,7 @@ public class WorkOrderService {
         qc.setFailedQuantity(failed);
         qc.setDefectReason(dto.getDefectReason());
         qc.setInspectorName("QC_01");
-
+        qc.setTenantId(tenantId);
         // Gắn ngược QC vào Log để tính năng Cascade hoạt động
         log.setQualityCheck(qc);
 
