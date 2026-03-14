@@ -30,6 +30,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Random;
+// IMPORT THÊM ĐỂ XỬ LÝ DTO (MAP)
+import java.util.Map;
+import java.util.HashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -93,10 +96,10 @@ public class WorkOrderService {
                 .orderNumber(wo.getOrderNumber())
                 .itemName(wo.getItem().getItemName())
                 .plannedQuantity(wo.getPlannedQuantity())
-                .actualQuantity(wo.getActualQuantity()) // Thêm dòng này
+                .actualQuantity(wo.getActualQuantity()) 
                 .status(wo.getStatus().name())
-                .workCenterId(wo.getWorkCenter() != null ? wo.getWorkCenter().getId() : null) // Thêm dòng này
-                .workCenterName(wo.getWorkCenter() != null ? wo.getWorkCenter().getName() : "Chưa gán") // Thêm dòng này
+                .workCenterId(wo.getWorkCenter() != null ? wo.getWorkCenter().getId() : null) 
+                .workCenterName(wo.getWorkCenter() != null ? wo.getWorkCenter().getName() : "Chưa gán") 
                 .plannedStartDate(wo.getPlannedStartDate())
                 .plannedEndDate(wo.getPlannedEndDate())
                 .build();
@@ -114,7 +117,6 @@ public class WorkOrderService {
         WorkCenter wc = workCenterRepository.findById(dto.getWorkCenterId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Máy/Trạm làm việc này"));
 
-        // CHỐT CHẶN: Máy hỏng hoặc mất mạng thì cấm báo cáo
         if (wc.getCurrentStatus() == WorkCenter.MachineStatus.DOWN ||
                 wc.getCurrentStatus() == WorkCenter.MachineStatus.OFFLINE) {
             throw new IllegalStateException(String.format(
@@ -127,7 +129,6 @@ public class WorkOrderService {
             throw new IllegalStateException("Cannot update progress for a finished or cancelled order.");
         }
 
-        // Validate dữ liệu từ QC
         int passed = dto.getPassedQuantity() != null ? dto.getPassedQuantity() : dto.getCompletedQuantity();
         int failed = dto.getFailedQuantity() != null ? dto.getFailedQuantity() : 0;
 
@@ -141,49 +142,43 @@ public class WorkOrderService {
             throw new IllegalArgumentException("Total completed quantity cannot exceed planned quantity!");
         }
 
-        // --- SỬA LỖI #1: Trừ kho ngay lập tức theo từng lần báo cáo ---
         processInventoryForProgress(wo, passed, dto.getCompletedQuantity(), tenantId);
 
-        // 1. Khởi tạo Production Log
         ProductionLog log = new ProductionLog();
         log.setWorkOrder(wo);
         log.setWorkCenter(wc);
         log.setQuantityDone(dto.getCompletedQuantity());
         log.setNotes(dto.getNotes());
-        log.setOperatorName("WORKER_01");
+        log.setOperatorName(dto.getOperatorName() != null ? dto.getOperatorName() : "Unknown Worker");
         log.setTenantId(tenantId);
 
-        // 2. Khởi tạo Quality Check và liên kết với Log
         QualityCheck qc = new QualityCheck();
         qc.setProductionLog(log);
         qc.setPassedQuantity(passed);
         qc.setFailedQuantity(failed);
         qc.setDefectReason(dto.getDefectReason());
-        qc.setInspectorName("QC_01");
+        qc.setInspectorName(dto.getOperatorName() != null ? dto.getOperatorName() : "Unknown QC");
         qc.setTenantId(tenantId);
-        // Gắn ngược QC vào Log để tính năng Cascade hoạt động
         log.setQualityCheck(qc);
 
         productionLogRepository.save(log);
 
-        // 3. NẾU CÓ HÀNG LỖI -> BẮN THÔNG BÁO REAL-TIME NGAY LẬP TỨC
         if (failed > 0) {
             String alertMsg = String.format("CẢNH BÁO: Lệnh %s vừa phát sinh %d sản phẩm lỗi. Lý do: %s",
                     wo.getOrderNumber(), failed, qc.getDefectReason());
-
             alertService.createAndSendAlert("QC_ALERT", alertMsg, tenantId);
         }
 
         wo.setActualQuantity(newActualQuantity);
 
-        // 4. Cập nhật trạng thái
         if (newActualQuantity == 0) {
             wo.setStatus(WorkOrder.WorkOrderStatus.RELEASED);
         } else if (newActualQuantity < wo.getPlannedQuantity()) {
             wo.setStatus(WorkOrder.WorkOrderStatus.IN_PROGRESS);
+            wc.setCurrentStatus(WorkCenter.MachineStatus.RUNNING); 
         } else {
             wo.setStatus(WorkOrder.WorkOrderStatus.COMPLETED);
-            // ĐÃ BỎ GỌI processInventoryPostCompletion ở đây
+            wc.setCurrentStatus(WorkCenter.MachineStatus.IDLE); 
         }
 
         WorkOrder updated = workOrderRepository.save(wo);
@@ -191,34 +186,21 @@ public class WorkOrderService {
         return mapToResponseDto(updated);
     }
 
-    /**
-     * Tự động Nhập kho Thành phẩm và Xuất kho Nguyên liệu THEO TỪNG LẦN BÁO CÁO
-     */
     private void processInventoryForProgress(WorkOrder wo, int passedQty, int totalCompletedQty, String tenantId) {
-        // 1. Nhập kho Thành phẩm (Chỉ nhập phần Passed của lần này)
         if (passedQty > 0) {
-            inventoryService.adjustStock(
-                    wo.getItem().getId(),
-                    new BigDecimal(passedQty),
-                    tenantId);
+            inventoryService.adjustStock(wo.getItem().getId(), new BigDecimal(passedQty), tenantId);
         }
 
-        // 2. Trừ kho Nguyên vật liệu (Dựa trên tổng khối lượng làm ra lần này, bao gồm
-        // cả lỗi)
         if (totalCompletedQty > 0) {
             List<Bom> bomList = bomRepository.findByParentItemIdAndTenantIdAndIsDeletedFalse(
-                    wo.getItem().getId(),
-                    tenantId);
+                    wo.getItem().getId(), tenantId);
 
             for (Bom bom : bomList) {
                 BigDecimal consumptionQty = bom.getQuantity()
                         .multiply(new BigDecimal(totalCompletedQty))
                         .multiply(BigDecimal.ONE.add(bom.getScrapFactor()));
 
-                inventoryService.adjustStock(
-                        bom.getChildItem().getId(),
-                        consumptionQty.negate(),
-                        tenantId);
+                inventoryService.adjustStock(bom.getChildItem().getId(), consumptionQty.negate(), tenantId);
             }
         }
     }
@@ -227,5 +209,24 @@ public class WorkOrderService {
         return workOrderRepository.findAllByTenantId(tenantId).stream()
                 .map(this::mapToResponseDto)
                 .toList();
+    }
+
+    // =========================================================================
+    // THÊM HÀM MỚI: BÓC TÁCH DỮ LIỆU ĐỂ TRÁNH LỖI HIBERNATE LAZY PROXY (LỖI 500)
+    // =========================================================================
+    public List<Map<String, Object>> getWorkOrderLogs(Long workOrderId) {
+        // Gọi repository để lấy logs
+        List<ProductionLog> logs = productionLogRepository.findByWorkOrderId(workOrderId);
+
+        // Map dữ liệu sang dạng phẳng (Map/DTO) để cắt đứt liên kết với Proxy
+        return logs.stream().map(log -> {
+            Map<String, Object> dto = new HashMap<>();
+            dto.put("id", log.getId());
+            dto.put("createdAt", log.getCreatedAt());
+            dto.put("operatorName", log.getOperatorName());
+            dto.put("quantityDone", log.getQuantityDone());
+            dto.put("notes", log.getNotes());
+            return dto;
+        }).toList();
     }
 }

@@ -29,4 +29,10 @@ public class AlertController {
         service.markAsRead(id);
         return ResponseEntity.ok("Alert marked as read");
     }
+
+    @GetMapping
+    public ResponseEntity<?> getAllAlerts() {
+        String tenantId = "TENANT_01"; // Hoặc lấy từ Token
+        return ResponseEntity.ok(service.getAllAlerts(tenantId));
+    }
 }

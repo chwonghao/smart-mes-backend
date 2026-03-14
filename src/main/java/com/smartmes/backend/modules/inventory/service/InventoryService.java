@@ -5,6 +5,8 @@ import com.smartmes.backend.modules.inventory.entity.Inventory;
 import com.smartmes.backend.modules.inventory.repository.InventoryRepository;
 import com.smartmes.backend.modules.masterdata.repository.ItemMasterRepository;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,7 @@ public class InventoryService {
 
     private final InventoryRepository inventoryRepository;
     private final ItemMasterRepository itemRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public void adjustStock(Long itemId, BigDecimal amount, String tenantId) {
@@ -40,6 +43,7 @@ public class InventoryService {
 
         inv.setOnHandQuantity(newQty);
         inventoryRepository.save(inv);
+        messagingTemplate.convertAndSend("/topic/dashboard", "INVENTORY_UPDATED");
     }
 
     /**

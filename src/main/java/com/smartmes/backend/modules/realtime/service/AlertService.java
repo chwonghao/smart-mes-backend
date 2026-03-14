@@ -36,6 +36,10 @@ public class AlertService {
         return alertRepository.findByTenantIdAndIsReadFalseOrderByCreatedAtDesc(tenantId);
     }
 
+    public List<SystemAlert> getAllAlerts(String tenantId) {
+        return alertRepository.findByTenantIdOrderByCreatedAtDesc(tenantId);
+    }
+
     @Transactional
     public void markAsRead(Long alertId) {
         alertRepository.findById(alertId).ifPresent(alert -> {

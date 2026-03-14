@@ -10,4 +10,6 @@ import java.util.List;
 public interface SystemAlertRepository extends JpaRepository<SystemAlert, Long> {
     // Lấy danh sách cảnh báo mới nhất chưa đọc
     List<SystemAlert> findByTenantIdAndIsReadFalseOrderByCreatedAtDesc(String tenantId);
+    // Lấy toàn bộ thông báo
+    List<SystemAlert> findByTenantIdOrderByCreatedAtDesc(String tenantId);
 }

@@ -9,5 +9,6 @@ public class ProductionProgressDto {
     private Integer passedQuantity;    // Số lượng đạt chuẩn
     private Integer failedQuantity;    // Số lượng lỗi
     private String defectReason;       // Lý do lỗi (nếu có)
+    private String operatorName;
     private String notes;
 }

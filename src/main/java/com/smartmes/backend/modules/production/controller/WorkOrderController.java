@@ -41,7 +41,8 @@ public class WorkOrderController {
     @GetMapping("/{id}/logs")
     @Operation(summary = "Get production logs", description = "Retrieve history of progress reports for a specific work order.")
     public ResponseEntity<?> getProductionLogs(@PathVariable Long id) {
-        return ResponseEntity.ok(productionLogRepository.findByWorkOrderIdOrderByCreatedAtDesc(id));
+        // return ResponseEntity.ok(productionLogRepository.findByWorkOrderIdOrderByCreatedAtDesc(id));
+        return ResponseEntity.ok(service.getWorkOrderLogs(id));
     }
 
     @GetMapping

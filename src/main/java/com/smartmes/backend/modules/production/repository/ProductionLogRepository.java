@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface ProductionLogRepository extends JpaRepository<ProductionLog, Long> {
     List<ProductionLog> findByWorkOrderIdOrderByCreatedAtDesc(Long workOrderId);
+    List<ProductionLog> findByWorkOrderId(Long workOrderId);
 }
