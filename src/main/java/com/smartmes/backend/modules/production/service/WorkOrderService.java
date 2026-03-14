@@ -20,6 +20,8 @@ import com.smartmes.backend.modules.production.repository.WorkOrderRepository;
 import com.smartmes.backend.modules.realtime.service.AlertService;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +43,7 @@ public class WorkOrderService {
     private final ProductionLogRepository productionLogRepository;
     private final AlertService alertService;
     private final WorkCenterRepository workCenterRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public WorkOrderResponseDto createWorkOrder(WorkOrderRequestDto dto, String tenantId) {
@@ -74,6 +77,7 @@ public class WorkOrderService {
         }
 
         WorkOrder saved = workOrderRepository.save(workOrder);
+        messagingTemplate.convertAndSend("/topic/dashboard", "NEW_ORDER");
         return mapToResponseDto(saved);
     }
 
@@ -183,6 +187,7 @@ public class WorkOrderService {
         }
 
         WorkOrder updated = workOrderRepository.save(wo);
+        messagingTemplate.convertAndSend("/topic/dashboard", "PROGRESS_UPDATED");
         return mapToResponseDto(updated);
     }
 
