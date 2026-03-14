@@ -6,6 +6,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -27,6 +28,8 @@ public class UserAccount implements UserDetails {
     private String fullName;
     private String role; // ROLE_ADMIN, ROLE_WORKER, ROLE_QC
     private String tenantId;
+    private boolean active = true;
+    private LocalDateTime createdAt;
 
     // --- CÁC HÀM CỦA SPRING SECURITY ---
     @Override
