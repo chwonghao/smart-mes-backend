@@ -4,10 +4,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
-import java.util.List;
-
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ROLE_ADMIN')")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -47,34 +43,6 @@ public class AuthController {
         var token = jwtService.generateToken(user, user.getFullName(), user.getTenantId());
         
         return ResponseEntity.ok(new LoginResponse(token, user.getFullName(), user.getRole()));
-    }
-
-    @GetMapping
-    public List<UserAccount> getAllUsers() {
-        return userRepository.findAll();
-    }
-
-    @PostMapping
-    public ResponseEntity<?> createUser(@RequestBody UserAccount user) {
-        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-            return ResponseEntity.badRequest().body("Tên đăng nhập đã tồn tại!");
-        }
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        return ResponseEntity.ok(userRepository.save(user));
-    }
-
-    @PatchMapping("/{id}/reset-password")
-    public ResponseEntity<?> resetPassword(@PathVariable Long id, @RequestBody String newPassword) {
-        UserAccount user = userRepository.findById(id).orElseThrow();
-        user.setPassword(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
-        return ResponseEntity.ok("Đã cập nhật mật khẩu mới!");
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
-        userRepository.deleteById(id);
-        return ResponseEntity.ok("Đã xóa tài khoản!");
     }
 }
 

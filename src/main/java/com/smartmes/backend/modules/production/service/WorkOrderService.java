@@ -18,6 +18,7 @@ import com.smartmes.backend.modules.production.entity.WorkOrder;
 import com.smartmes.backend.modules.production.repository.ProductionLogRepository;
 import com.smartmes.backend.modules.production.repository.WorkOrderRepository;
 import com.smartmes.backend.modules.realtime.service.AlertService;
+import com.smartmes.backend.modules.system.SystemSettingService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,7 +31,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Random;
-// IMPORT THÊM ĐỂ XỬ LÝ DTO (MAP)
 import java.util.Map;
 import java.util.HashMap;
 
@@ -47,6 +47,7 @@ public class WorkOrderService {
     private final AlertService alertService;
     private final WorkCenterRepository workCenterRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final SystemSettingService settingService; 
 
     @Transactional
     public WorkOrderResponseDto createWorkOrder(WorkOrderRequestDto dto, String tenantId) {
@@ -164,12 +165,23 @@ public class WorkOrderService {
         productionLogRepository.save(log);
 
         if (failed > 0) {
-            String alertMsg = String.format("CẢNH BÁO: Lệnh %s vừa phát sinh %d sản phẩm lỗi. Lý do: %s",
-                    wo.getOrderNumber(), failed, qc.getDefectReason());
-            alertService.createAndSendAlert("QC_ALERT", alertMsg, tenantId);
+            double currentNgRate = ((double) failed / dto.getCompletedQuantity()) * 100;
+            double maxNgRateAllowed = settingService.getDoubleSetting("MAX_NG_RATE", 10.0);
+
+            if (currentNgRate >= maxNgRateAllowed) {
+                String alertMsg = String.format("🚨 BÁO ĐỘNG: Lệnh %s có tỷ lệ lỗi %.1f%% (vượt ngưỡng cho phép %.1f%%). Lý do: %s",
+                        wo.getOrderNumber(), currentNgRate, maxNgRateAllowed, qc.getDefectReason());
+                alertService.createAndSendAlert("QC_CRITICAL", alertMsg, tenantId);
+            } else {
+                String alertMsg = String.format("CẢNH BÁO: Lệnh %s vừa phát sinh %d sản phẩm lỗi. Lý do: %s",
+                        wo.getOrderNumber(), failed, qc.getDefectReason());
+                alertService.createAndSendAlert("QC_ALERT", alertMsg, tenantId);
+            }
         }
 
         wo.setActualQuantity(newActualQuantity);
+
+        boolean isAutoCloseEnabled = settingService.getBooleanSetting("AUTO_CLOSE_WO", false);
 
         if (newActualQuantity == 0) {
             wo.setStatus(WorkOrder.WorkOrderStatus.RELEASED);
@@ -177,8 +189,12 @@ public class WorkOrderService {
             wo.setStatus(WorkOrder.WorkOrderStatus.IN_PROGRESS);
             wc.setCurrentStatus(WorkCenter.MachineStatus.RUNNING); 
         } else {
-            wo.setStatus(WorkOrder.WorkOrderStatus.COMPLETED);
-            wc.setCurrentStatus(WorkCenter.MachineStatus.IDLE); 
+            if (isAutoCloseEnabled) {
+                wo.setStatus(WorkOrder.WorkOrderStatus.COMPLETED);
+                wc.setCurrentStatus(WorkCenter.MachineStatus.IDLE);
+            } else {
+                wo.setStatus(WorkOrder.WorkOrderStatus.IN_PROGRESS);
+            }
         }
 
         WorkOrder updated = workOrderRepository.save(wo);
@@ -211,14 +227,9 @@ public class WorkOrderService {
                 .toList();
     }
 
-    // =========================================================================
-    // THÊM HÀM MỚI: BÓC TÁCH DỮ LIỆU ĐỂ TRÁNH LỖI HIBERNATE LAZY PROXY (LỖI 500)
-    // =========================================================================
     public List<Map<String, Object>> getWorkOrderLogs(Long workOrderId) {
-        // Gọi repository để lấy logs
         List<ProductionLog> logs = productionLogRepository.findByWorkOrderId(workOrderId);
 
-        // Map dữ liệu sang dạng phẳng (Map/DTO) để cắt đứt liên kết với Proxy
         return logs.stream().map(log -> {
             Map<String, Object> dto = new HashMap<>();
             dto.put("id", log.getId());

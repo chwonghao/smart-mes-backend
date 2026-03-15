@@ -28,6 +28,7 @@ public class UserAccount implements UserDetails {
     private String fullName;
     private String role; // ROLE_ADMIN, ROLE_WORKER, ROLE_QC
     private String tenantId;
+    @Column(nullable = true)
     private boolean active = true;
     private LocalDateTime createdAt;
 

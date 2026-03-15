@@ -1,5 +1,5 @@
 server:
-  port: 8080 # Cổng chạy API Backend của bạn
+  port: ${SERVER_PORT:8080} # Cổng chạy API Backend của bạn
 
 spring:
   application:
@@ -7,9 +7,9 @@ spring:
 
   # CẤU HÌNH KẾT NỐI DATABASE POSTGRESQL (Khớp với Docker)
   datasource:
-    url: jdbc:postgresql://localhost:5432/smart_mes_db
-    username: postgres
-    password: root
+    url: jdbc:postgresql://${POSTGRESQL_HOST}:${POSTGRESQL_PORT}/${POSTGRESQL_DATABASE}
+    username: ${POSTGRESQL_USERNAME}
+    password: ${POSTGRESQL_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10 # Tối ưu hóa số lượng kết nối đồng thời
@@ -34,3 +34,8 @@ logging:
   level:
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+  domain: ${DOMAIN}
