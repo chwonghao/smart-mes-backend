@@ -1,5 +1,6 @@
 package com.smartmes.backend.modules.production.service;
 
+import com.smartmes.backend.core.annotation.AuditLog;
 import com.smartmes.backend.modules.inventory.service.InventoryService;
 import com.smartmes.backend.modules.masterdata.entity.Bom;
 import com.smartmes.backend.modules.masterdata.entity.ItemMaster;
@@ -107,6 +108,7 @@ public class WorkOrderService {
     }
 
     @Transactional
+    @AuditLog(module = "WORK_ORDER", actionType = "UPDATE", description = "Cap nhat tien do san xuat")
     public WorkOrderResponseDto updateProgress(Long id, ProductionProgressDto dto, String tenantId) {
         WorkOrder wo = workOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Work Order not found"));

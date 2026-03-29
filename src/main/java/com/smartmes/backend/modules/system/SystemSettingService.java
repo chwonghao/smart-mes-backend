@@ -15,7 +15,6 @@ import java.util.Map;
 public class SystemSettingService {
     private final SettingRepository settingRepository;
     private final SimpMessagingTemplate messagingTemplate;
-    private final SystemLogService systemLogService;
 
     /**
      * Always fetches latest value from DB (no @Cacheable on this method).
@@ -52,20 +51,9 @@ public class SystemSettingService {
     @CacheEvict(value = "settings", allEntries = true)
     public void updateSetting(String key, String value) {
         SystemSetting setting = settingRepository.findById(key).orElse(new SystemSetting());
-        String oldValue = setting.getSettingValue();
-
         setting.setSettingKey(key);
         setting.setSettingValue(String.valueOf(value));
         settingRepository.save(setting);
-
-        systemLogService.logAction(
-                "SYSTEM_SETTINGS",
-                "UPDATE",
-                key,
-                "Updated system setting: " + key,
-                oldValue,
-                value
-        );
     }
 
     @Transactional
