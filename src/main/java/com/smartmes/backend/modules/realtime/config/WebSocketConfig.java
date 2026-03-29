@@ -16,7 +16,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // Cho phép mọi nguồn (CORS) để dễ test.
         registry.addEndpoint("/ws-mes")
                 // .setAllowedOriginPatterns("*")
-                .setAllowedOrigins("http://localhost:5173")
+                // .setAllowedOrigins("http://192.168.0.109:5173", "http://localhost:*", "http://127.0.0.1:*")
+                .setAllowedOrigins("http://localhost:*", "http://127.0.0.1:*")
                 .withSockJS();
     }
 

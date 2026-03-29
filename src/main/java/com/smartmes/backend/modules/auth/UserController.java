@@ -7,11 +7,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ROLE_ADMIN')") // Chỉ Admin mới được vào đây
+@PreAuthorize("hasRole('ROLE_ADMIN')") 
 public class UserController {
 
     private final UserRepository userRepository;
@@ -32,7 +33,12 @@ public class UserController {
     }
 
     @PatchMapping("/{id}/reset-password")
-    public ResponseEntity<?> resetPassword(@PathVariable Long id, @RequestBody String newPassword) {
+    public ResponseEntity<?> resetPassword(@PathVariable Long id, @RequestBody Map<String, String> request) {
+        String newPassword = request.get("newPassword");
+        if (newPassword == null || newPassword.isEmpty()) {
+            return ResponseEntity.badRequest().body("Mật khẩu mới không được để trống!");
+        }
+        
         UserAccount user = userRepository.findById(id).orElseThrow();
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
