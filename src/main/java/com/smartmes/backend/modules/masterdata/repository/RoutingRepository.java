@@ -11,4 +11,7 @@ public interface RoutingRepository extends JpaRepository<Routing, Long> {
     
     // Get all steps of a production process for an item, ordered by step number
     List<Routing> findByItemIdAndTenantIdAndIsDeletedFalseOrderByStepNumberAsc(Long itemId, String tenantId);
+
+    // Ordered by drag-drop sequence for visual builder use cases.
+    List<Routing> findByItemIdAndTenantIdAndIsDeletedFalseOrderByStepSequenceAscIdAsc(Long itemId, String tenantId);
 }

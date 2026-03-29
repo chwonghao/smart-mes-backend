@@ -1,5 +1,6 @@
 package com.smartmes.backend.modules.production.controller;
 
+import com.smartmes.backend.core.security.SecurityUtils;
 import com.smartmes.backend.modules.production.dto.ProductionProgressDto;
 import com.smartmes.backend.modules.production.dto.WorkOrderRequestDto;
 import com.smartmes.backend.modules.production.dto.WorkOrderResponseDto;
@@ -22,20 +23,19 @@ import org.springframework.web.bind.annotation.*;
 public class WorkOrderController {
 
     private final WorkOrderService service;
-    private final String CURRENT_TENANT_ID = "TENANT_01";
     private final ProductionLogRepository productionLogRepository;
 
 
     @PostMapping
     @Operation(summary = "Create a new Work Order", description = "Automatically generates order number and calculates end date based on routing.")
     public ResponseEntity<?> createWorkOrder(@RequestBody WorkOrderRequestDto dto) {
-        return ResponseEntity.ok(service.createWorkOrder(dto, CURRENT_TENANT_ID));
+        return ResponseEntity.ok(service.createWorkOrder(dto, SecurityUtils.getCurrentTenantId()));
     }
 
     @PatchMapping("/{id}/progress")
     @Operation(summary = "Update production progress", description = "Report finished quantities and automatically update order status.")
     public ResponseEntity<?> updateProgress(@PathVariable Long id, @RequestBody ProductionProgressDto dto) {
-        return ResponseEntity.ok(service.updateProgress(id, dto, CURRENT_TENANT_ID));
+        return ResponseEntity.ok(service.updateProgress(id, dto, SecurityUtils.getCurrentTenantId()));
     }
 
     @GetMapping("/{id}/logs")
@@ -47,7 +47,7 @@ public class WorkOrderController {
 
     @GetMapping
     public ResponseEntity<List<WorkOrderResponseDto>> getAllWorkOrders() {
-        List<WorkOrderResponseDto> orders = service.getAllWorkOrders(CURRENT_TENANT_ID);
+        List<WorkOrderResponseDto> orders = service.getAllWorkOrders(SecurityUtils.getCurrentTenantId());
         return ResponseEntity.ok(orders);
     }
 }

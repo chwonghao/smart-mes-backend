@@ -20,6 +20,10 @@ public class Routing extends BaseEntity {
     @Column(name = "step_number", nullable = false)
     private Integer stepNumber;
 
+    // Visual builder order (1, 2, 3...) used by drag-and-drop UI.
+    @Column(name = "step_sequence", nullable = false)
+    private Integer stepSequence;
+
     // Name of the operation (e.g., Cutting, Sanding, Painting)
     @Column(name = "operation_name", nullable = false, length = 100)
     private String operationName;

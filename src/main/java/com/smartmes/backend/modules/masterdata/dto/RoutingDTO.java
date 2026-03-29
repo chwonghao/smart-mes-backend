@@ -3,9 +3,7 @@ package com.smartmes.backend.modules.masterdata.dto;
 import lombok.Data;
 
 @Data
-public class RoutingRequestDto {
-    private Long itemId;
-    private Integer stepNumber;
+public class RoutingDTO {
     private Integer stepSequence;
     private String operationName;
     private Long workCenterId;

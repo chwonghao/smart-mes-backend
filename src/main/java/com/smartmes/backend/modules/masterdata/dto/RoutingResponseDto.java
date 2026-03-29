@@ -8,6 +8,7 @@ import lombok.Data;
 public class RoutingResponseDto {
     private Long id;
     private Integer stepNumber;
+    private Integer stepSequence;
     private String operationName;
     private String workCenterName;
     private Integer standardTime;

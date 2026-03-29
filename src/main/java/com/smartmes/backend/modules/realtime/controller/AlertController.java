@@ -1,5 +1,6 @@
 package com.smartmes.backend.modules.realtime.controller;
 
+import com.smartmes.backend.core.security.SecurityUtils;
 import com.smartmes.backend.modules.realtime.service.AlertService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,12 +16,11 @@ import org.springframework.web.bind.annotation.*;
 public class AlertController {
 
     private final AlertService service;
-    private final String CURRENT_TENANT_ID = "TENANT_01";
 
     @GetMapping("/unread")
     @Operation(summary = "Get unread alerts", description = "Retrieve a list of all unread system alerts.")
     public ResponseEntity<?> getUnreadAlerts() {
-        return ResponseEntity.ok(service.getUnreadAlerts(CURRENT_TENANT_ID));
+        return ResponseEntity.ok(service.getUnreadAlerts(SecurityUtils.getCurrentTenantId()));
     }
 
     @PatchMapping("/{id}/read")
@@ -32,7 +32,7 @@ public class AlertController {
 
     @GetMapping
     public ResponseEntity<?> getAllAlerts() {
-        String tenantId = "TENANT_01"; // Hoặc lấy từ Token
+        String tenantId = SecurityUtils.getCurrentTenantId();
         return ResponseEntity.ok(service.getAllAlerts(tenantId));
     }
 }

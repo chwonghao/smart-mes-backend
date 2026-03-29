@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,6 +22,9 @@ public class AuthController {
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${app.default-tenant:TENANT_DEFAULT}")
+    private String defaultTenantId;
+
     // TỰ ĐỘNG TẠO TÀI KHOẢN ADMIN KHI CHẠY SERVER LẦN ĐẦU
     @PostConstruct
     public void initAdminAccount() {
@@ -30,7 +34,7 @@ public class AuthController {
             admin.setPassword(passwordEncoder.encode("123456"));
             admin.setFullName("Giám đốc Hệ thống");
             admin.setRole("ROLE_ADMIN");
-            admin.setTenantId("TENANT_01");
+            admin.setTenantId(defaultTenantId);
             userRepository.save(admin);
         }
     }

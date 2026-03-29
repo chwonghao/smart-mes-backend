@@ -17,7 +17,7 @@ public class WorkerService {
     private final WorkerRepository workerRepository;
 
     public List<WorkerDto> getAllWorkers(String tenantId) {
-        return workerRepository.findByTenantIdOrderByIdDesc(tenantId).stream().map(worker -> {
+        return workerRepository.findByTenantIdAndIsDeletedFalseOrderByIdDesc(tenantId).stream().map(worker -> {
             WorkerDto dto = new WorkerDto();
             dto.setId(worker.getId());
             dto.setWorkerCode(worker.getWorkerCode());
@@ -31,7 +31,7 @@ public class WorkerService {
 
     @Transactional
     public WorkerDto createWorker(WorkerDto dto, String tenantId) {
-        if (workerRepository.existsByWorkerCodeAndTenantId(dto.getWorkerCode(), tenantId)) {
+        if (workerRepository.existsByWorkerCodeAndTenantIdAndIsDeletedFalse(dto.getWorkerCode(), tenantId)) {
             throw new IllegalArgumentException("Mã nhân viên đã tồn tại!");
         }
 
@@ -42,6 +42,7 @@ public class WorkerService {
         worker.setShift(dto.getShift());
         worker.setStatus(dto.getStatus() != null ? dto.getStatus() : "ACTIVE");
         worker.setTenantId(tenantId);
+        worker.setCreatedBy("SYSTEM");
 
         Worker saved = workerRepository.save(worker);
         dto.setId(saved.getId());
