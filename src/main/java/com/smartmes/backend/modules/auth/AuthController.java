@@ -1,6 +1,7 @@
 package com.smartmes.backend.modules.auth;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
@@ -35,19 +36,38 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
         var user = userRepository.findByUsername(request.getUsername()).orElseThrow();
         var token = jwtService.generateToken(user, user.getFullName(), user.getTenantId());
         
-        return ResponseEntity.ok(new LoginResponse(token, user.getFullName(), user.getRole()));
+        // Thiết lập JWT vào HttpOnly Cookie
+        jwtService.setAuthCookie(response, token);
+        
+        return ResponseEntity.ok(new LoginResponse(user.getFullName(), user.getRole()));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletResponse response) {
+        // Xóa cookie xác thực
+        jwtService.clearAuthCookie(response);
+        return ResponseEntity.ok("Logged out successfully");
     }
 }
 
-@Data class LoginRequest { private String username; private String password; }
+@Data class LoginRequest { 
+    private String username; 
+    private String password; 
+}
+
 @Data class LoginResponse { 
-    private String token; private String fullName; private String role;
-    public LoginResponse(String token, String fullName, String role) { this.token = token; this.fullName = fullName; this.role = role;} 
+    private String fullName; 
+    private String role;
+    
+    public LoginResponse(String fullName, String role) { 
+        this.fullName = fullName; 
+        this.role = role;
+    } 
 }

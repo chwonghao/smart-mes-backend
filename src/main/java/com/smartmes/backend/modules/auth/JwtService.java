@@ -6,7 +6,9 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,9 @@ import java.util.function.Function;
 public class JwtService {
     @Value("${app.jwt.secret}")
     private String secretKey;
+    
+    private static final String AUTH_COOKIE_NAME = "auth_token";
+    private static final long TOKEN_EXPIRATION_MS = 1000 * 60 * 60 * 24; // 24h
 
     public String generateToken(UserDetails userDetails, String fullName, String tenantId) {
         HashMap<String, Object> extraClaims = new HashMap<>();
@@ -29,9 +34,37 @@ public class JwtService {
                 .setClaims(extraClaims)
                 .setSubject(userDetails.getUsername())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // Hết hạn sau 24h
+                .setExpiration(new Date(System.currentTimeMillis() + TOKEN_EXPIRATION_MS))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    /**
+     * Thiết lập JWT vào HttpOnly Cookie
+     */
+    public void setAuthCookie(HttpServletResponse response, String token) {
+        String cookieValue = String.format(
+                "%s=%s; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=%d",
+                AUTH_COOKIE_NAME,
+                token,
+                TOKEN_EXPIRATION_MS / 1000 // Chuyển sang giây
+        );
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieValue);
+    }
+
+    /**
+     * Xóa cookie xác thực (dùng cho logout)
+     */
+    public void clearAuthCookie(HttpServletResponse response) {
+        String cookieValue = String.format("%s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0", AUTH_COOKIE_NAME);
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieValue);
+    }
+
+    /**
+     * Lấy tên của cookie xác thực
+     */
+    public String getAuthCookieName() {
+        return AUTH_COOKIE_NAME;
     }
 
     public String extractUsername(String token) {

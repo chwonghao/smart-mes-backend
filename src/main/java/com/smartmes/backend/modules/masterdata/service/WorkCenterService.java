@@ -9,11 +9,14 @@ import com.smartmes.backend.modules.masterdata.repository.WorkCenterRepository;
 import com.smartmes.backend.modules.realtime.service.AlertService;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,6 +26,7 @@ public class WorkCenterService {
     private final WorkCenterRepository repository;
     private final MachineDowntimeRepository downtimeRepository;
     private final AlertService alertService; // Tích hợp Real-time Alert!
+    private final SimpMessagingTemplate messagingTemplate; // WebSocket messaging
 
     @Transactional
     public WorkCenterResponseDto createWorkCenter(WorkCenterRequestDto dto, String tenantId) {
@@ -99,6 +103,9 @@ public class WorkCenterService {
         // 3. Gửi cảnh báo TỨC THỜI cho quản đốc & đội bảo trì
         String alertMsg = String.format("KHẨN CẤP: Máy [%s] vừa ngừng hoạt động. Lý do: %s", wc.getName(), reason);
         alertService.createAndSendAlert("MACHINE_DOWN", alertMsg, tenantId);
+        
+        // 4. Đồng bộ trạng thái máy lên Dashboard (WebSocket)
+        publishMachineStatusUpdate(wc);
     }
 
     @Transactional
@@ -121,19 +128,42 @@ public class WorkCenterService {
         // 3. Bắn thông báo đã sửa xong
         String alertMsg = String.format("TIN VUI: Máy [%s] đã được sửa chữa xong và sẵn sàng hoạt động.", wc.getName());
         alertService.createAndSendAlert("MACHINE_FIXED", alertMsg, tenantId);
+        
+        // 4. Đồng bộ trạng thái máy lên Dashboard (WebSocket)
+        publishMachineStatusUpdate(wc);
     }
 
     @Transactional
     public void updatePing(Long workCenterId) {
         repository.findById(workCenterId).ifPresent(wc -> {
             wc.setLastPingAt(LocalDateTime.now());
+            
             // Nếu máy đang OFFLINE mà ping lại được, cho nó về IDLE
             if (wc.getCurrentStatus() == WorkCenter.MachineStatus.OFFLINE) {
                 wc.setCurrentStatus(WorkCenter.MachineStatus.IDLE);
                 alertService.createAndSendAlert("NETWORK_RECOVERY", 
                     "Máy [" + wc.getName() + "] đã có mạng trở lại.", wc.getTenantId());
             }
+            
             repository.save(wc);
+            
+            // Đồng bộ trạng thái máy lên Dashboard (WebSocket)
+            publishMachineStatusUpdate(wc);
         });
+    }
+    
+    /**
+     * Phát sự kiện cập nhật trạng thái máy lên topic Dashboard
+     */
+    private void publishMachineStatusUpdate(WorkCenter workCenter) {
+        Map<String, Object> statusUpdate = new HashMap<>();
+        statusUpdate.put("event", "MACHINE_STATUS_CHANGED");
+        statusUpdate.put("workCenterId", workCenter.getId());
+        statusUpdate.put("workCenterCode", workCenter.getCode());
+        statusUpdate.put("workCenterName", workCenter.getName());
+        statusUpdate.put("status", workCenter.getCurrentStatus().name());
+        statusUpdate.put("timestamp", LocalDateTime.now());
+        
+        messagingTemplate.convertAndSend("/topic/dashboard", statusUpdate);
     }
 }
