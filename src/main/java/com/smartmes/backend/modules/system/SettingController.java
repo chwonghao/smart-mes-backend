@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 public class SettingController {
 
     private final SettingRepository settingRepository;
+    private final SystemSettingService systemSettingService;
 
     // Lấy toàn bộ cấu hình dưới dạng Key-Value (Ví dụ: { "FACTORY_NAME": "SmartMES" })
     @GetMapping
@@ -25,12 +26,6 @@ public class SettingController {
     // Lưu hàng loạt cấu hình
     @PostMapping
     public void saveSettings(@RequestBody Map<String, String> settings) {
-        settings.forEach((key, value) -> {
-            SystemSetting setting = settingRepository.findById(key).orElse(new SystemSetting());
-            setting.setSettingKey(key);
-            // Ép kiểu mọi thứ về String để lưu vào Database
-            setting.setSettingValue(String.valueOf(value)); 
-            settingRepository.save(setting);
-        });
+        systemSettingService.saveSettings(settings);
     }
 }

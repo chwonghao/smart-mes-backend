@@ -164,9 +164,19 @@ public class WorkOrderService {
 
         productionLogRepository.save(log);
 
+        String maxNgRateSettingValue = settingService.getSettingValue("MAX_NG_RATE", "10.0");
+        double maxNgRateAllowed;
+        try {
+            maxNgRateAllowed = Double.parseDouble(maxNgRateSettingValue);
+        } catch (NumberFormatException ex) {
+            maxNgRateAllowed = 10.0;
+        }
+
+        String autoCloseSettingValue = settingService.getSettingValue("AUTO_CLOSE_WO", "false");
+        boolean isAutoCloseEnabled = Boolean.parseBoolean(autoCloseSettingValue);
+
         if (failed > 0) {
             double currentNgRate = ((double) failed / dto.getCompletedQuantity()) * 100;
-            double maxNgRateAllowed = settingService.getDoubleSetting("MAX_NG_RATE", 10.0);
 
             if (currentNgRate >= maxNgRateAllowed) {
                 String alertMsg = String.format("🚨 BÁO ĐỘNG: Lệnh %s có tỷ lệ lỗi %.1f%% (vượt ngưỡng cho phép %.1f%%). Lý do: %s",
@@ -180,8 +190,6 @@ public class WorkOrderService {
         }
 
         wo.setActualQuantity(newActualQuantity);
-
-        boolean isAutoCloseEnabled = settingService.getBooleanSetting("AUTO_CLOSE_WO", false);
 
         if (newActualQuantity == 0) {
             wo.setStatus(WorkOrder.WorkOrderStatus.RELEASED);
