@@ -42,6 +42,6 @@ public abstract class BaseEntity {
     private String updatedBy;
 
     // Cờ xóa mềm (Soft Delete) - Tuyệt đối không xóa vật lý database của xưởng
-    @Column(name = "is_deleted", nullable = false)
+    @Column(name = "is_deleted", nullable = false, columnDefinition = "boolean default false")
     private boolean isDeleted = false;
 }
