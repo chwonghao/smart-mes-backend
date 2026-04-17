@@ -68,8 +68,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
         } catch (ExpiredJwtException ex) {
             logger.warn("JWT token has expired: {}", ex.getMessage());
-            // Xóa cookie hết hạn
-            jwtService.clearAuthCookie(response);
+            // Xóa access token hết hạn để frontend chủ động gọi refresh token
+            jwtService.clearAccessCookie(response);
             // Để GlobalExceptionHandler xử lý response với 401
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
@@ -89,7 +89,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if (jwtService.getAuthCookieName().equals(cookie.getName())) {
+                if (jwtService.getAccessCookieName().equals(cookie.getName())) {
                     return cookie.getValue();
                 }
             }
