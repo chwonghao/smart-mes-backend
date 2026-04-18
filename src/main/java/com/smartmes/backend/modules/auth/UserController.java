@@ -1,5 +1,6 @@
 package com.smartmes.backend.modules.auth;
 
+import com.smartmes.backend.core.common.ApiResponse;
 import com.smartmes.backend.core.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,70 +23,71 @@ public class UserController {
     private final PasswordEncoder passwordEncoder;
 
     @GetMapping("/me")
-    public ResponseEntity<?> me() {
+    public ResponseEntity<ApiResponse<UserMeResponse>> me() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated() || authentication.getPrincipal() instanceof String) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.failure("Unauthorized"));
         }
 
         Object principal = authentication.getPrincipal();
         if (!(principal instanceof UserAccount account)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.failure("Unauthorized"));
         }
 
-        return ResponseEntity.ok(new MeResponse(
+        return ResponseEntity.ok(ApiResponse.success(new UserMeResponse(
                 account.getUsername(),
                 account.getFullName(),
                 account.getRole(),
                 account.getTenantId()
-        ));
+        )));
     }
 
     @GetMapping
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public List<UserResponse> getAllUsers() {
-        return userRepository.findByTenantIdAndActiveTrueOrderByIdDesc(SecurityUtils.getCurrentTenantId()).stream()
+    public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers() {
+        List<UserResponse> users = userRepository.findByTenantIdAndActiveTrueOrderByIdDesc(SecurityUtils.getCurrentTenantId()).stream()
                 .map(UserResponse::new)
                 .toList();
+        return ResponseEntity.ok(ApiResponse.success(users));
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<?> createUser(@RequestBody UserAccount user) {
+    public ResponseEntity<ApiResponse<UserResponse>> createUser(@RequestBody UserAccount user) {
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-            return ResponseEntity.badRequest().body("Tên đăng nhập đã tồn tại!");
+            return ResponseEntity.badRequest().body(ApiResponse.failure("Tên đăng nhập đã tồn tại!"));
         }
         user.setTenantId(SecurityUtils.getCurrentTenantId());
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         UserAccount saved = userRepository.save(user);
-        return ResponseEntity.ok(new UserResponse(saved));
+        return ResponseEntity.ok(ApiResponse.success(new UserResponse(saved), "Tạo tài khoản thành công"));
     }
 
     @PatchMapping("/{id}/reset-password")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<?> resetPassword(@PathVariable Long id, @RequestBody Map<String, String> request) {
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@PathVariable Long id, @RequestBody Map<String, String> request) {
         String newPassword = request.get("newPassword");
         if (newPassword == null || newPassword.isEmpty()) {
-            return ResponseEntity.badRequest().body("Mật khẩu mới không được để trống!");
+            return ResponseEntity.badRequest().body(ApiResponse.failure("Mật khẩu mới không được để trống!"));
         }
         
         UserAccount user = userRepository.findByIdAndTenantId(id, SecurityUtils.getCurrentTenantId()).orElseThrow();
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
-        return ResponseEntity.ok("Đã cập nhật mật khẩu mới!");
+        return ResponseEntity.ok(ApiResponse.success(null, "Đã cập nhật mật khẩu mới!"));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
         UserAccount user = userRepository.findByIdAndTenantId(id, SecurityUtils.getCurrentTenantId()).orElseThrow();
         user.setActive(false);
         userRepository.save(user);
-        return ResponseEntity.ok("Đã xóa tài khoản!");
+        return ResponseEntity.ok(ApiResponse.success(null, "Đã xóa tài khoản!"));
     }
 }
 
-record MeResponse(String username, String fullName, String role, String tenantId) {}
+record UserMeResponse(String username, String fullName, String role, String tenantId) {}
 
 record UserResponse(Long id, String username, String fullName, String role, boolean active, String tenantId) {
     UserResponse(UserAccount account) {

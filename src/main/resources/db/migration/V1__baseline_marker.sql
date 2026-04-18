@@ -1,0 +1,2 @@
+-- Baseline marker for introducing Flyway into an existing project.
+-- Intentionally no-op.

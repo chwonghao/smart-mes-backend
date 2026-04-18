@@ -1,11 +1,10 @@
 package com.smartmes.backend.modules.auth;
 
+import com.smartmes.backend.core.common.ApiResponse;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
@@ -46,7 +45,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest request, HttpServletResponse response) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
@@ -58,21 +57,24 @@ public class AuthController {
         jwtService.setAccessCookie(response, accessToken);
         jwtService.setRefreshCookie(response, refreshToken);
         
-        return ResponseEntity.ok(new LoginResponse(user.getFullName(), user.getRole()));
+        return ResponseEntity.ok(ApiResponse.success(
+                new LoginResponse(user.getUsername(), user.getFullName(), user.getRole(), user.getTenantId()),
+                "Login successful"
+        ));
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<ApiResponse<Void>> refresh(HttpServletRequest request, HttpServletResponse response) {
         String refreshToken = extractCookieValue(request, jwtService.getRefreshCookieName());
         if (refreshToken == null || refreshToken.isBlank()) {
             jwtService.clearAllAuthCookies(response);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing refresh token");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.failure("Missing refresh token"));
         }
 
         try {
             if (!jwtService.isRefreshToken(refreshToken)) {
                 jwtService.clearAllAuthCookies(response);
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid refresh token type");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.failure("Invalid refresh token type"));
             }
 
             String username = jwtService.extractUsername(refreshToken);
@@ -81,13 +83,13 @@ public class AuthController {
 
             if (account == null || account.getTenantId() == null || !account.getTenantId().equals(tenantId)) {
                 jwtService.clearAllAuthCookies(response);
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid refresh token context");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.failure("Invalid refresh token context"));
             }
 
             UserDetails userDetails = account;
             if (!jwtService.isTokenValid(refreshToken, userDetails)) {
                 jwtService.clearAllAuthCookies(response);
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Refresh token expired");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.failure("Refresh token expired"));
             }
 
             String newAccessToken = jwtService.generateAccessToken(account, account.getFullName(), account.getTenantId());
@@ -97,38 +99,18 @@ public class AuthController {
             jwtService.setAccessCookie(response, newAccessToken);
             jwtService.setRefreshCookie(response, newRefreshToken);
 
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(ApiResponse.success(null, "Token refreshed"));
         } catch (Exception ex) {
             jwtService.clearAllAuthCookies(response);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Failed to refresh token");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.failure("Failed to refresh token"));
         }
-    }
-
-    @GetMapping("/me")
-    public ResponseEntity<?> me() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || authentication.getPrincipal() instanceof String) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
-        }
-
-        Object principal = authentication.getPrincipal();
-        if (!(principal instanceof UserAccount account)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
-        }
-
-        return ResponseEntity.ok(new MeResponse(
-                account.getUsername(),
-                account.getFullName(),
-                account.getRole(),
-                account.getTenantId()
-        ));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletResponse response) {
+    public ResponseEntity<ApiResponse<Void>> logout(HttpServletResponse response) {
         // Xóa toàn bộ cookie xác thực
         jwtService.clearAllAuthCookies(response);
-        return ResponseEntity.ok("Logged out successfully");
+        return ResponseEntity.ok(ApiResponse.success(null, "Logged out successfully"));
     }
 
     private String extractCookieValue(HttpServletRequest request, String cookieName) {
@@ -147,30 +129,21 @@ public class AuthController {
     }
 }
 
-@Data class MeResponse {
-    private String username;
-    private String fullName;
-    private String role;
-    private String tenantId;
-
-    public MeResponse(String username, String fullName, String role, String tenantId) {
-        this.username = username;
-        this.fullName = fullName;
-        this.role = role;
-        this.tenantId = tenantId;
-    }
-}
 @Data class LoginRequest { 
     private String username; 
     private String password; 
 }
 
 @Data class LoginResponse { 
+    private String username;
     private String fullName; 
     private String role;
+    private String tenantId;
     
-    public LoginResponse(String fullName, String role) { 
+    public LoginResponse(String username, String fullName, String role, String tenantId) {
+        this.username = username;
         this.fullName = fullName; 
         this.role = role;
+        this.tenantId = tenantId;
     } 
 }
