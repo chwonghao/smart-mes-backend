@@ -4,6 +4,8 @@ import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
@@ -102,6 +104,26 @@ public class AuthController {
         }
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<?> me() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || authentication.getPrincipal() instanceof String) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof UserAccount account)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+        }
+
+        return ResponseEntity.ok(new MeResponse(
+                account.getUsername(),
+                account.getFullName(),
+                account.getRole(),
+                account.getTenantId()
+        ));
+    }
+
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletResponse response) {
         // Xóa toàn bộ cookie xác thực
@@ -125,6 +147,19 @@ public class AuthController {
     }
 }
 
+@Data class MeResponse {
+    private String username;
+    private String fullName;
+    private String role;
+    private String tenantId;
+
+    public MeResponse(String username, String fullName, String role, String tenantId) {
+        this.username = username;
+        this.fullName = fullName;
+        this.role = role;
+        this.tenantId = tenantId;
+    }
+}
 @Data class LoginRequest { 
     private String username; 
     private String password; 

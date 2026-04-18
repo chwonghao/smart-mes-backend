@@ -15,6 +15,6 @@ public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
     // Check if order number exists to prevent duplicates
     boolean existsByOrderNumberAndTenantId(String orderNumber, String tenantId);
 
-    // Hàm lấy toàn bộ Lệnh sản xuất theo Tenant
-    List<WorkOrder> findAllByTenantId(String tenantId);
+    // Hàm lấy toàn bộ Lệnh sản xuất theo Tenant (không bao gồm bản ghi xóa mềm)
+    List<WorkOrder> findAllByTenantIdAndIsDeletedFalse(String tenantId);
 }

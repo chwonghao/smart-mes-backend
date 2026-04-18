@@ -155,7 +155,11 @@ erDiagram
 
 ### Auth & User
 - `POST /api/v1/auth/login`
-	- Username/password authentication, returns JWT + user metadata
+	- Username/password authentication, sets `access_token` + `refresh_token` HttpOnly cookies and returns user metadata
+- `POST /api/v1/auth/refresh`
+	- Validates `refresh_token` cookie, rotates both auth cookies, returns 200 when refresh succeeds
+- `POST /api/v1/auth/logout`
+	- Clears all auth cookies (`access_token`, `refresh_token`, and legacy `auth_token`)
 - `GET /api/v1/users`
 	- List users (admin-restricted)
 - `POST /api/v1/users`
@@ -277,6 +281,7 @@ From `application.yml` and runtime wiring:
 - `POSTGRESQL_USERNAME`
 - `POSTGRESQL_PASSWORD` (secret)
 - `JWT_SECRET` (secret, Base64 key for HS256 signing)
+- `COOKIE_SECURE` (optional, default `false`; set `true` on HTTPS environments)
 - `DOMAIN` (allowed CORS origin for security layer)
 
 ### Database Connectivity
@@ -292,6 +297,11 @@ From `application.yml` and runtime wiring:
 
 ### Security Configuration Notes
 - Stateless JWT authentication with custom `JwtAuthFilter`
+- Access token and refresh token are separated into two HttpOnly cookies:
+	- `access_token`: short-lived, used by request authentication filter
+	- `refresh_token`: longer-lived, used only by `/api/v1/auth/refresh`
+- Refresh flow rotates both tokens on each successful refresh to reduce replay window
+- Legacy cookie cleanup is handled on logout for backward compatibility with earlier auth model
 - Public paths include auth + websocket handshake + swagger docs
 - Role-protected areas include users/settings management
 

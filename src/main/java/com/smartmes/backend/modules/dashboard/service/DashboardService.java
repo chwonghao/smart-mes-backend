@@ -19,8 +19,8 @@ public class DashboardService {
     private final InventoryRepository inventoryRepository;
 
     public DashboardStatsDto getQuickStats(String tenantId) {
-        // 1. SỬA LỖI: Lọc chính xác theo tenantId
-        List<WorkOrder> allOrders = workOrderRepository.findAllByTenantId(tenantId); 
+        // 1. Lọc theo tenant + bỏ bản ghi soft-delete ở tầng repository
+        List<WorkOrder> allOrders = workOrderRepository.findAllByTenantIdAndIsDeletedFalse(tenantId);
 
         long total = allOrders.size();
         long active = allOrders.stream()
@@ -40,8 +40,8 @@ public class DashboardService {
                 })
                 .average().orElse(0);
 
-        // 3. HOÀN THIỆN: Lấy tồn kho, cộng dồn nếu trùng tên vật tư
-        Map<String, Double> stockSummary = inventoryRepository.findAll().stream()
+        // 3. Lấy tồn kho theo tenant + bỏ bản ghi soft-delete từ database
+        Map<String, Double> stockSummary = inventoryRepository.findByTenantIdAndIsDeletedFalse(tenantId).stream()
                 .filter(inv -> inv.getItem() != null)
                 .collect(Collectors.toMap(
                     inv -> inv.getItem().getItemName(),

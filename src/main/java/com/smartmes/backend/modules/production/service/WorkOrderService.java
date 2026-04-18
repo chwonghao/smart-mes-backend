@@ -232,7 +232,7 @@ public class WorkOrderService {
     }
 
     public List<WorkOrderResponseDto> getAllWorkOrders(String tenantId) {
-        return workOrderRepository.findAllByTenantId(tenantId).stream()
+        return workOrderRepository.findAllByTenantIdAndIsDeletedFalse(tenantId).stream()
                 .map(this::mapToResponseDto)
                 .toList();
     }

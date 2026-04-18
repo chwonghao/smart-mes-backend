@@ -39,7 +39,9 @@ public class SecurityConfig {
                 return config;
             }))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/**", "/ws-mes/**", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                .requestMatchers("/api/v1/auth/login", "/api/v1/auth/logout", "/api/v1/auth/refresh", "/ws-mes/**", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                .requestMatchers("/api/v1/auth/me").authenticated()
+                .requestMatchers("/api/v1/users/me").authenticated()
                 .requestMatchers("/api/v1/users/**", "/api/v1/settings/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )

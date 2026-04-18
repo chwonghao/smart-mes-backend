@@ -23,11 +23,11 @@ public class MachineWatchdogService {
     public void checkOfflineMachines() {
         LocalDateTime threeMinutesAgo = LocalDateTime.now().minusMinutes(3);
 
-        // Tìm tất cả các máy có lastPingAt cũ hơn 3 phút VÀ chưa bị đánh dấu là OFFLINE
-        List<WorkCenter> offlineMachines = workCenterRepository.findAll().stream()
-                .filter(wc -> wc.getLastPingAt() != null && wc.getLastPingAt().isBefore(threeMinutesAgo))
-                .filter(wc -> wc.getCurrentStatus() != WorkCenter.MachineStatus.OFFLINE)
-                .toList();
+        // Đẩy toàn bộ điều kiện lọc xuống DB để tránh scan + filter in-memory.
+        List<WorkCenter> offlineMachines = workCenterRepository.findMachinesToMarkOffline(
+            threeMinutesAgo,
+            WorkCenter.MachineStatus.OFFLINE
+        );
 
         for (WorkCenter wc : offlineMachines) {
             wc.setCurrentStatus(WorkCenter.MachineStatus.OFFLINE);
