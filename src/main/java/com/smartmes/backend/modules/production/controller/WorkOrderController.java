@@ -2,9 +2,12 @@ package com.smartmes.backend.modules.production.controller;
 
 import com.smartmes.backend.core.security.SecurityUtils;
 import com.smartmes.backend.modules.production.dto.ProductionProgressDto;
+import com.smartmes.backend.modules.production.dto.ProductionScheduleDto;
 import com.smartmes.backend.modules.production.dto.WorkOrderRequestDto;
 import com.smartmes.backend.modules.production.dto.WorkOrderResponseDto;
+import com.smartmes.backend.modules.production.entity.ProductionSchedule;
 import com.smartmes.backend.modules.production.repository.ProductionLogRepository;
+import com.smartmes.backend.modules.production.service.ProductionScheduleService;
 import com.smartmes.backend.modules.production.service.WorkOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class WorkOrderController {
 
     private final WorkOrderService service;
+    private final ProductionScheduleService productionScheduleService;
     private final ProductionLogRepository productionLogRepository;
 
 
@@ -49,5 +53,27 @@ public class WorkOrderController {
     public ResponseEntity<List<WorkOrderResponseDto>> getAllWorkOrders() {
         List<WorkOrderResponseDto> orders = service.getAllWorkOrders(SecurityUtils.getCurrentTenantId());
         return ResponseEntity.ok(orders);
+    }
+
+    @GetMapping("/{id}/schedules")
+    @Operation(summary = "Get production schedules for a work order", description = "Retrieve all assigned machines and their production schedules for a specific work order.")
+    public ResponseEntity<List<ProductionScheduleDto>> getProductionSchedules(@PathVariable Long id) {
+        List<ProductionSchedule> schedules = productionScheduleService.getSchedulesForWorkOrder(id);
+        List<ProductionScheduleDto> dtos = schedules.stream()
+                .map(ProductionScheduleDto::fromEntity)
+                .toList();
+        return ResponseEntity.ok(dtos);
+    }
+
+    @PatchMapping("/{id}/schedules/{scheduleId}/status")
+    @Operation(summary = "Update production schedule status", description = "Update the status of a specific production schedule (PENDING, IN_PROGRESS, COMPLETED, SKIPPED).")
+    public ResponseEntity<?> updateScheduleStatus(@PathVariable Long id, @PathVariable Long scheduleId, @RequestParam String status) {
+        try {
+            ProductionSchedule.ScheduleStatus newStatus = ProductionSchedule.ScheduleStatus.valueOf(status);
+            productionScheduleService.updateScheduleStatus(scheduleId, newStatus);
+            return ResponseEntity.ok("Schedule status updated successfully");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Invalid status: " + status);
+        }
     }
 }

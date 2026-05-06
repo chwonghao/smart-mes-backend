@@ -48,7 +48,8 @@ public class WorkOrderService {
     private final AlertService alertService;
     private final WorkCenterRepository workCenterRepository;
     private final SimpMessagingTemplate messagingTemplate;
-    private final SystemSettingService settingService; 
+    private final SystemSettingService settingService;
+    private final ProductionScheduleService productionScheduleService; 
 
     @Transactional
     public WorkOrderResponseDto createWorkOrder(WorkOrderRequestDto dto, String tenantId) {
@@ -75,13 +76,11 @@ public class WorkOrderService {
         workOrder.setTenantId(tenantId);
         workOrder.setCreatedBy("ADMIN");
 
-        if (dto.getWorkCenterId() != null) {
-            WorkCenter wc = workCenterRepository.findById(dto.getWorkCenterId())
-                    .orElseThrow(() -> new RuntimeException("Work Center not found"));
-            workOrder.setWorkCenter(wc);
-        }
-
         WorkOrder saved = workOrderRepository.save(workOrder);
+
+        // Automatically create production schedules based on the item's routing
+        productionScheduleService.createSchedulesFromRouting(saved.getId(), item.getId(), tenantId);
+
         messagingTemplate.convertAndSend("/topic/dashboard", "NEW_ORDER");
         return mapToResponseDto(saved);
     }

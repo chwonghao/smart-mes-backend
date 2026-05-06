@@ -9,6 +9,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "work_orders")
@@ -45,11 +47,14 @@ public class WorkOrder extends BaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     private WorkOrderStatus status = WorkOrderStatus.DRAFT;
 
-    // Priority level
     @Column(name = "priority")
     private Integer priority = 1; // 1: Low, 2: Medium, 3: High
 
-    // Work center
+    // Danh sách lịch sản xuất (máy sản xuất cho lệnh này)
+    @OneToMany(mappedBy = "workOrder", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductionSchedule> schedules = new ArrayList<>();
+
+    // Máy chính (có thể NULL nếu có multiple schedules)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "work_center_id")
     private WorkCenter workCenter;
