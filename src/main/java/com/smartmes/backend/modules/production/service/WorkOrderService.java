@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -254,8 +255,8 @@ public class WorkOrderService {
         WorkOrder workOrder = workOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Work Order not found"));
         
-        if (!workOrder.getTenantId().equals(tenantId)) {
-            throw new RuntimeException("Access denied");
+        if (!Objects.equals(workOrder.getTenantId(), tenantId)) {
+            throw new RuntimeException(String.format("Access denied: Work Order belongs to tenant [%s], but current user is [%s]", workOrder.getTenantId(), tenantId));
         }
         
         return mapToResponseDto(workOrder);

@@ -130,11 +130,11 @@ public class ProductionScheduleService {
         }
 
         if (workOrder.getItem() != null) {
-            List<ProductionSchedule> generatedSchedules = createSchedulesFromRouting(workOrderId, workOrder.getItem().getId(), tenantId);
-            if (!generatedSchedules.isEmpty()) {
-                return generatedSchedules.stream()
-                        .map(ProductionScheduleDto::fromEntity)
-                        .toList();
+            List<Routing> routingSteps = routingRepository
+                    .findByItemIdAndTenantIdAndIsDeletedFalseOrderByStepNumberAsc(workOrder.getItem().getId(), tenantId);
+
+            if (!routingSteps.isEmpty()) {
+                return buildScheduleDtosFromRouting(workOrder, routingSteps);
             }
         }
 
@@ -154,6 +154,32 @@ public class ProductionScheduleService {
         }
 
         return List.of();
+    }
+
+    private List<ProductionScheduleDto> buildScheduleDtosFromRouting(WorkOrder workOrder, List<Routing> routingSteps) {
+        List<ProductionScheduleDto> scheduleDtos = new ArrayList<>();
+
+        for (int index = 0; index < routingSteps.size(); index++) {
+            Routing routing = routingSteps.get(index);
+            scheduleDtos.add(ProductionScheduleDto.builder()
+                    .id(null)
+                    .workOrderId(workOrder.getId())
+                    .workCenterId(routing.getWorkCenter().getId())
+                    .workCenterName(routing.getWorkCenter().getName())
+                    .sequenceNumber(index + 1)
+                    .quantityTarget(workOrder.getPlannedQuantity())
+                    .quantityCompleted(0)
+                    .status(ProductionSchedule.ScheduleStatus.PENDING.name())
+                    .estimatedStartTime(workOrder.getPlannedStartDate() != null
+                            ? workOrder.getPlannedStartDate().plusMinutes((long) index * 60)
+                            : null)
+                    .estimatedEndTime(workOrder.getPlannedStartDate() != null && routing.getStandardTime() != null
+                            ? workOrder.getPlannedStartDate().plusMinutes((long) index * 60 + routing.getStandardTime())
+                            : null)
+                    .build());
+        }
+
+        return scheduleDtos;
     }
 
     /**
