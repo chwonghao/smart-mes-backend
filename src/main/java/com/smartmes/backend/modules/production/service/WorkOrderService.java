@@ -249,4 +249,15 @@ public class WorkOrderService {
             return dto;
         }).toList();
     }
+
+    public WorkOrderResponseDto getWorkOrderDetail(Long id, String tenantId) {
+        WorkOrder workOrder = workOrderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Work Order not found"));
+        
+        if (!workOrder.getTenantId().equals(tenantId)) {
+            throw new RuntimeException("Access denied");
+        }
+        
+        return mapToResponseDto(workOrder);
+    }
 }

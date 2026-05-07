@@ -55,14 +55,17 @@ public class WorkOrderController {
         return ResponseEntity.ok(orders);
     }
 
+    @GetMapping("/{id}")
+    @Operation(summary = "Get work order detail", description = "Retrieve detailed information for a specific work order by ID.")
+    public ResponseEntity<WorkOrderResponseDto> getWorkOrderDetail(@PathVariable Long id) {
+        WorkOrderResponseDto order = service.getWorkOrderDetail(id, SecurityUtils.getCurrentTenantId());
+        return ResponseEntity.ok(order);
+    }
+
     @GetMapping("/{id}/schedules")
     @Operation(summary = "Get production schedules for a work order", description = "Retrieve all assigned machines and their production schedules for a specific work order.")
     public ResponseEntity<List<ProductionScheduleDto>> getProductionSchedules(@PathVariable Long id) {
-        List<ProductionSchedule> schedules = productionScheduleService.getSchedulesForWorkOrder(id);
-        List<ProductionScheduleDto> dtos = schedules.stream()
-                .map(ProductionScheduleDto::fromEntity)
-                .toList();
-        return ResponseEntity.ok(dtos);
+        return ResponseEntity.ok(productionScheduleService.getScheduleDtosForWorkOrder(id, SecurityUtils.getCurrentTenantId()));
     }
 
     @PatchMapping("/{id}/schedules/{scheduleId}/status")

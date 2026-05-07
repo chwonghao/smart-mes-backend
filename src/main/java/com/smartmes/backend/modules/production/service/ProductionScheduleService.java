@@ -4,6 +4,7 @@ import com.smartmes.backend.modules.masterdata.entity.ItemMaster;
 import com.smartmes.backend.modules.masterdata.entity.Routing;
 import com.smartmes.backend.modules.masterdata.repository.ItemMasterRepository;
 import com.smartmes.backend.modules.masterdata.repository.RoutingRepository;
+import com.smartmes.backend.modules.production.dto.ProductionScheduleDto;
 import com.smartmes.backend.modules.production.entity.ProductionSchedule;
 import com.smartmes.backend.modules.production.entity.WorkOrder;
 import com.smartmes.backend.modules.production.repository.ProductionScheduleRepository;
@@ -103,6 +104,56 @@ public class ProductionScheduleService {
      */
     public List<ProductionSchedule> getSchedulesForWorkOrder(Long workOrderId) {
         return productionScheduleRepository.findByWorkOrderIdOrderBySequenceNumber(workOrderId);
+    }
+
+    /**
+     * Returns schedule DTOs for a work order, creating fallback data when the order
+     * has not been migrated to production schedules yet.
+     *
+     * @param workOrderId ID of the work order
+     * @param tenantId Tenant identifier for multi-tenancy
+     * @return List of schedule DTOs
+     */
+    @Transactional(readOnly = true)
+    public List<ProductionScheduleDto> getScheduleDtosForWorkOrder(Long workOrderId, String tenantId) {
+        List<ProductionSchedule> schedules = getSchedulesForWorkOrder(workOrderId);
+        if (!schedules.isEmpty()) {
+            return schedules.stream()
+                    .map(ProductionScheduleDto::fromEntity)
+                    .toList();
+        }
+
+        WorkOrder workOrder = workOrderRepository.findById(workOrderId).orElse(null);
+        if (workOrder == null) {
+            log.warn("Work order {} not found when resolving schedules", workOrderId);
+            return List.of();
+        }
+
+        if (workOrder.getItem() != null) {
+            List<ProductionSchedule> generatedSchedules = createSchedulesFromRouting(workOrderId, workOrder.getItem().getId(), tenantId);
+            if (!generatedSchedules.isEmpty()) {
+                return generatedSchedules.stream()
+                        .map(ProductionScheduleDto::fromEntity)
+                        .toList();
+            }
+        }
+
+        if (workOrder.getWorkCenter() != null) {
+            return List.of(ProductionScheduleDto.builder()
+                    .id(null)
+                    .workOrderId(workOrder.getId())
+                    .workCenterId(workOrder.getWorkCenter().getId())
+                    .workCenterName(workOrder.getWorkCenter().getName())
+                    .sequenceNumber(1)
+                    .quantityTarget(workOrder.getPlannedQuantity())
+                    .quantityCompleted(workOrder.getActualQuantity() != null ? workOrder.getActualQuantity() : 0)
+                    .status(workOrder.getStatus() != null ? workOrder.getStatus().name() : "PENDING")
+                    .estimatedStartTime(workOrder.getPlannedStartDate())
+                    .estimatedEndTime(workOrder.getPlannedEndDate())
+                    .build());
+        }
+
+        return List.of();
     }
 
     /**
