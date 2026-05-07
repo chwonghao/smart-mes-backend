@@ -2,6 +2,8 @@ package com.smartmes.backend.modules.auth;
 
 import com.smartmes.backend.core.common.ApiResponse;
 import com.smartmes.backend.core.security.SecurityUtils;
+import com.smartmes.backend.modules.masterdata.entity.WorkCenter;
+import com.smartmes.backend.modules.masterdata.repository.WorkCenterRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
@@ -20,6 +22,7 @@ import java.util.Map;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final WorkCenterRepository workCenterRepository;
     private final PasswordEncoder passwordEncoder;
 
     @GetMapping("/me")
@@ -34,11 +37,16 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.failure("Unauthorized"));
         }
 
+        UserAccount current = userRepository.findByUsername(account.getUsername()).orElse(account);
+        WorkCenter assignedWorkCenter = current.getWorkCenter();
+
         return ResponseEntity.ok(ApiResponse.success(new UserMeResponse(
-                account.getUsername(),
-                account.getFullName(),
-                account.getRole(),
-                account.getTenantId()
+            current.getUsername(),
+            current.getFullName(),
+            current.getRole(),
+            current.getTenantId(),
+            assignedWorkCenter != null ? assignedWorkCenter.getId() : null,
+            assignedWorkCenter != null ? assignedWorkCenter.getName() : null
         )));
     }
 
@@ -57,6 +65,19 @@ public class UserController {
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
             return ResponseEntity.badRequest().body(ApiResponse.failure("Tên đăng nhập đã tồn tại!"));
         }
+
+        if ("ROLE_WORKER".equals(user.getRole())) {
+            if (user.getWorkCenterId() == null) {
+                return ResponseEntity.badRequest().body(ApiResponse.failure("Công nhân phải được gán khu làm việc / máy làm việc!"));
+            }
+
+            WorkCenter workCenter = workCenterRepository.findByIdAndTenantIdAndIsDeletedFalse(user.getWorkCenterId(), SecurityUtils.getCurrentTenantId())
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khu làm việc đã chọn!"));
+            user.setWorkCenter(workCenter);
+        } else {
+            user.setWorkCenter(null);
+        }
+
         user.setTenantId(SecurityUtils.getCurrentTenantId());
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         UserAccount saved = userRepository.save(user);
@@ -87,10 +108,19 @@ public class UserController {
     }
 }
 
-record UserMeResponse(String username, String fullName, String role, String tenantId) {}
+record UserMeResponse(String username, String fullName, String role, String tenantId, Long workCenterId, String workCenterName) {}
 
-record UserResponse(Long id, String username, String fullName, String role, boolean active, String tenantId) {
+record UserResponse(Long id, String username, String fullName, String role, boolean active, String tenantId, Long workCenterId, String workCenterName) {
     UserResponse(UserAccount account) {
-        this(account.getId(), account.getUsername(), account.getFullName(), account.getRole(), account.isActive(), account.getTenantId());
+        this(
+                account.getId(),
+                account.getUsername(),
+                account.getFullName(),
+                account.getRole(),
+                account.isActive(),
+                account.getTenantId(),
+                account.getWorkCenter() != null ? account.getWorkCenter().getId() : null,
+                account.getWorkCenter() != null ? account.getWorkCenter().getName() : null
+        );
     }
 }

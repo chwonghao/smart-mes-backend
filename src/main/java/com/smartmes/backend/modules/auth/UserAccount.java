@@ -1,10 +1,13 @@
 package com.smartmes.backend.modules.auth;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+
+import com.smartmes.backend.modules.masterdata.entity.WorkCenter;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -28,6 +31,15 @@ public class UserAccount implements UserDetails {
     private String fullName;
     private String role; // ROLE_ADMIN, ROLE_WORKER, ROLE_QC
     private String tenantId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_center_id")
+    private WorkCenter workCenter;
+
+    @Transient
+    @JsonProperty("workCenterId")
+    private Long workCenterId;
+
     @Column(nullable = true)
     private boolean active = true;
     private LocalDateTime createdAt;

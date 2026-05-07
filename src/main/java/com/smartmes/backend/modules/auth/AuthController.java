@@ -58,7 +58,13 @@ public class AuthController {
         jwtService.setRefreshCookie(response, refreshToken);
         
         return ResponseEntity.ok(ApiResponse.success(
-                new LoginResponse(user.getUsername(), user.getFullName(), user.getRole(), user.getTenantId()),
+            new LoginResponse(
+                user.getUsername(),
+                user.getFullName(),
+                user.getRole(),
+                user.getTenantId(),
+                user.getWorkCenter() != null ? user.getWorkCenter().getId() : null,
+                user.getWorkCenter() != null ? user.getWorkCenter().getName() : null),
                 "Login successful"
         ));
     }
@@ -139,11 +145,15 @@ public class AuthController {
     private String fullName; 
     private String role;
     private String tenantId;
+    private Long workCenterId;
+    private String workCenterName;
     
-    public LoginResponse(String username, String fullName, String role, String tenantId) {
+    public LoginResponse(String username, String fullName, String role, String tenantId, Long workCenterId, String workCenterName) {
         this.username = username;
         this.fullName = fullName; 
         this.role = role;
         this.tenantId = tenantId;
+        this.workCenterId = workCenterId;
+        this.workCenterName = workCenterName;
     } 
 }
