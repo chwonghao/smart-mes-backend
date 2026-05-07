@@ -14,6 +14,7 @@ import com.smartmes.backend.modules.production.dto.ProductionProgressDto;
 import com.smartmes.backend.modules.production.dto.WorkOrderRequestDto;
 import com.smartmes.backend.modules.production.dto.WorkOrderResponseDto;
 import com.smartmes.backend.modules.production.entity.ProductionLog;
+import com.smartmes.backend.modules.production.entity.ProductionSchedule;
 import com.smartmes.backend.modules.production.entity.QualityCheck;
 import com.smartmes.backend.modules.production.entity.WorkOrder;
 import com.smartmes.backend.modules.production.repository.ProductionLogRepository;
@@ -146,6 +147,8 @@ public class WorkOrderService {
         }
 
         processInventoryForProgress(wo, passed, dto.getCompletedQuantity(), tenantId);
+        ProductionSchedule updatedSchedule = productionScheduleService.updateProgressForWorkCenter(
+            wo.getId(), dto.getWorkCenterId(), dto.getCompletedQuantity(), tenantId);
 
         ProductionLog log = new ProductionLog();
         log.setWorkOrder(wo);
@@ -208,6 +211,16 @@ public class WorkOrderService {
         }
 
         WorkOrder updated = workOrderRepository.save(wo);
+        Map<String, Object> progressPayload = new HashMap<>();
+        progressPayload.put("workOrderId", wo.getId());
+        progressPayload.put("workCenterId", dto.getWorkCenterId());
+        progressPayload.put("scheduleId", updatedSchedule.getId());
+        progressPayload.put("quantityCompleted", updatedSchedule.getQuantityCompleted());
+        progressPayload.put("quantityTarget", updatedSchedule.getQuantityTarget());
+        progressPayload.put("completionPercentage", updatedSchedule.getCompletionPercentage());
+        progressPayload.put("status", updatedSchedule.getStatus().name());
+
+        messagingTemplate.convertAndSend("/topic/dashboard/progress", progressPayload);
         messagingTemplate.convertAndSend("/topic/dashboard", "PROGRESS_UPDATED");
         return mapToResponseDto(updated);
     }

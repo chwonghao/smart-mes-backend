@@ -35,6 +35,16 @@ public class ProductionSchedule extends BaseEntity {
     @Column(name = "quantity_completed")
     private Integer quantityCompleted = 0;
 
+    @Transient
+    public double getCompletionPercentage() {
+        if (quantityTarget == null || quantityTarget <= 0 || quantityCompleted == null) {
+            return 0.0;
+        }
+
+        double percentage = ((double) quantityCompleted / quantityTarget) * 100.0;
+        return Math.round(percentage * 100.0) / 100.0;
+    }
+
     // Trạng thái lịch sản xuất
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)

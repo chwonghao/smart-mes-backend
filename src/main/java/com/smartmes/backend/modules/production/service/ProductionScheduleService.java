@@ -214,6 +214,45 @@ public class ProductionScheduleService {
         log.info("Updated schedule {} status to {}", scheduleId, status);
     }
 
+    @Transactional
+    public ProductionSchedule updateProgressForWorkCenter(Long workOrderId, Long workCenterId, int completedQuantity, String tenantId) {
+        ProductionSchedule schedule = productionScheduleRepository
+                .findByWorkOrderIdAndWorkCenterId(workOrderId, workCenterId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Production schedule not found for workOrder=" + workOrderId + " and workCenter=" + workCenterId));
+
+        if (!tenantId.equals(schedule.getTenantId())) {
+            throw new IllegalArgumentException("Access denied for production schedule " + schedule.getId());
+        }
+
+        int currentCompleted = schedule.getQuantityCompleted() != null ? schedule.getQuantityCompleted() : 0;
+        int targetQuantity = schedule.getQuantityTarget() != null ? schedule.getQuantityTarget() : 0;
+        int updatedCompleted = currentCompleted + completedQuantity;
+
+        if (updatedCompleted > targetQuantity) {
+            throw new IllegalArgumentException("Total completed quantity for this machine cannot exceed its target quantity.");
+        }
+
+        schedule.setQuantityCompleted(updatedCompleted);
+
+        if (updatedCompleted <= 0) {
+            schedule.setStatus(ProductionSchedule.ScheduleStatus.PENDING);
+        } else if (updatedCompleted < targetQuantity) {
+            schedule.setStatus(ProductionSchedule.ScheduleStatus.IN_PROGRESS);
+            if (schedule.getActualStartTime() == null) {
+                schedule.setActualStartTime(LocalDateTime.now());
+            }
+        } else {
+            schedule.setStatus(ProductionSchedule.ScheduleStatus.COMPLETED);
+            if (schedule.getActualStartTime() == null) {
+                schedule.setActualStartTime(LocalDateTime.now());
+            }
+            schedule.setActualEndTime(LocalDateTime.now());
+        }
+
+        return productionScheduleRepository.save(schedule);
+    }
+
     /**
      * Deletes all schedules for a work order (used when canceling work order).
      *

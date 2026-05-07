@@ -16,6 +16,7 @@ public class ProductionScheduleDto {
     private Integer sequenceNumber;
     private Integer quantityTarget;
     private Integer quantityCompleted;
+    private Double completionPercentage;
     private String status;
     private LocalDateTime estimatedStartTime;
     private LocalDateTime estimatedEndTime;
@@ -31,6 +32,7 @@ public class ProductionScheduleDto {
                 .sequenceNumber(entity.getSequenceNumber())
                 .quantityTarget(entity.getQuantityTarget())
                 .quantityCompleted(entity.getQuantityCompleted())
+                .completionPercentage(entity.getCompletionPercentage())
                 .status(entity.getStatus().name())
                 .estimatedStartTime(entity.getEstimatedStartTime())
                 .estimatedEndTime(entity.getEstimatedEndTime())
