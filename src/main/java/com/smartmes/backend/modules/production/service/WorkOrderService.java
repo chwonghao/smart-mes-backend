@@ -114,6 +114,11 @@ public class WorkOrderService {
         WorkOrder wo = workOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Work Order not found"));
 
+        // Idempotency check: Bỏ qua nếu gói tin này đã được xử lý (tránh lỗi cộng dồn nhiều lần khi mạng chập chờn)
+        if (dto.getRequestId() != null && productionLogRepository.existsByRequestId(dto.getRequestId())) {
+            return mapToResponseDto(wo); 
+        }
+
         if (dto.getWorkCenterId() == null) {
             throw new IllegalArgumentException("Bắt buộc phải chọn Máy/Trạm làm việc (workCenterId) để báo cáo!");
         }
@@ -157,6 +162,7 @@ public class WorkOrderService {
         log.setNotes(dto.getNotes());
         log.setOperatorName(dto.getOperatorName() != null ? dto.getOperatorName() : "Unknown Worker");
         log.setTenantId(tenantId);
+        log.setRequestId(dto.getRequestId()); // Ghi nhận ID để lần sau chặn lại
 
         QualityCheck qc = new QualityCheck();
         qc.setProductionLog(log);

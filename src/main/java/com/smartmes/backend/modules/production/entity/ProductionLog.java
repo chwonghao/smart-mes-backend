@@ -32,4 +32,7 @@ public class ProductionLog extends BaseEntity {
 
     @Column(name = "operator_name")
     private String operatorName; // Tên công nhân báo cáo
+
+    @Column(name = "request_id", unique = true, nullable = true)
+    private String requestId; // UUID để track duplicate requests (Idempotency Key)
 }
