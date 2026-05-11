@@ -26,7 +26,8 @@ public interface WorkCenterRepository extends JpaRepository<WorkCenter, Long> {
         @Query("""
                         SELECT wc
                         FROM WorkCenter wc
-                        WHERE wc.isDeleted = false
+                        WHERE wc.isActive = true
+                            AND wc.isDeleted = false
                             AND wc.lastPingAt IS NOT NULL
                             AND wc.lastPingAt < :threshold
                             AND (wc.currentStatus IS NULL OR wc.currentStatus <> :offlineStatus)
