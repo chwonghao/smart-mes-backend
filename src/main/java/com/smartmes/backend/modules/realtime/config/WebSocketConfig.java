@@ -1,5 +1,6 @@
 package com.smartmes.backend.modules.realtime.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -10,14 +11,14 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    @Value("${app.domain:http://localhost:5173}")
+    private String frontendOrigin;
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Mở cổng "/ws" để client (Web/App) kết nối vào. 
-        // Cho phép mọi nguồn (CORS) để dễ test.
         registry.addEndpoint("/ws-mes")
-                // .setAllowedOriginPatterns("*")
-                // .setAllowedOrigins("http://192.168.0.109:5173", "http://localhost:*", "http://127.0.0.1:*")
-                .setAllowedOrigins("http://localhost:*", "http://127.0.0.1:*")
+                .setAllowedOriginPatterns(frontendOrigin, "http://localhost:*", "http://127.0.0.1:*")
                 .withSockJS();
     }
 

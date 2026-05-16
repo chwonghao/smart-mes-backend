@@ -1,15 +1,22 @@
-# Bước 1: Sử dụng hình ảnh JDK 17 làm nền tảng
-FROM eclipse-temurin:17-jdk-alpine
+FROM maven:3.9.9-eclipse-temurin-17 AS build
 
-# Bước 2: Tạo thư mục làm việc trong container
+WORKDIR /workspace
+
+COPY pom.xml ./
+COPY src ./src
+
+RUN mvn -B -DskipTests package
+
+FROM eclipse-temurin:17-jre-jammy
+
 WORKDIR /app
 
-# Bước 3: Copy file jar đã build từ máy vào container
-# Lưu ý: Tên file jar phải khớp với tên trong pom.xml (mes-backend-0.0.1-SNAPSHOT.jar)
-COPY target/*.jar app.jar
+RUN useradd --create-home --shell /usr/sbin/nologin appuser
 
-# Bước 4: Khai báo cổng mà ứng dụng sẽ chạy
+COPY --from=build /workspace/target/*.jar /app/app.jar
+
 EXPOSE 8080
 
-# Bước 5: Lệnh để khởi chạy ứng dụng
-ENTRYPOINT ["java", "-jar", "app.jar"]
+USER appuser
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
